@@ -146,24 +146,73 @@ final class IntelligenceService {
     }
 
     /// One plain sentence describing what a scan turned up, for the daily notification.
+    ///
+    /// The model is given the numbers but not trusted with their meaning. An early version
+    /// produced "695 KB safe to keep" for a figure that was actually the space *recoverable
+    /// by deleting* — exactly inverted, on the one screen where being wrong about a number
+    /// destroys trust. So the result is validated before use and a deterministic sentence
+    /// is substituted if it looks off.
     func summarise(duplicates: Int, screenshots: Int, videos: Int, bytes: Int64) async -> String? {
+        let fallback = Self.plainSummary(duplicates: duplicates, screenshots: screenshots,
+                                         videos: videos, bytes: bytes)
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *), availability.isAvailable else { return nil }
+        guard #available(iOS 26.0, *), availability.isAvailable else { return fallback }
+
         let prompt = """
-        Write one short, friendly sentence (max 18 words) telling someone what a phone \
-        storage scan found. Do not invent numbers. Findings: \(duplicates) duplicate photos, \
-        \(screenshots) screenshots, \(videos) large videos, \(Bytes.string(bytes)) recoverable.
+        Write one friendly sentence, 16 words or fewer, for a phone storage-cleaning app.
+        Meaning to convey: deleting these items would RECOVER \(Bytes.string(bytes)) of storage.
+        Items found: \(duplicates) duplicate photos, \(screenshots) screenshots, \(videos) large videos.
+        Rules: use only the numbers given, never invent others. Do not say the space is         "kept", "saved" or "safe to keep" — the space is recovered by removing the items.         Do not claim anything has been deleted yet.
         """
+
         do {
             let session = try activeSession()
             let response = try await session.respond(to: prompt)
-            return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            return Self.isTrustworthy(text, bytes: bytes) ? text : fallback
         } catch {
-            return nil
+            return fallback
         }
         #else
-        return nil
+        return fallback
         #endif
+    }
+
+    /// Rejects a generated sentence that inverts the meaning or invents figures.
+    static func isTrustworthy(_ text: String, bytes: Int64) -> Bool {
+        guard !text.isEmpty, text.count <= 160 else { return false }
+        let lower = text.lowercased()
+
+        // The inversion we actually observed, plus its near neighbours.
+        let inversions = ["safe to keep", "kept safe", "saved to keep", "space is kept",
+                          "freed up already", "have been deleted", "were deleted", "deleted them"]
+        if inversions.contains(where: lower.contains) { return false }
+
+        // Any size figure it mentions must be the one we handed it.
+        let expected = Bytes.string(bytes).lowercased()
+        let sizePattern = #"\d+(\.\d+)?\s?(bytes|kb|mb|gb|tb)"#
+        if let regex = try? NSRegularExpression(pattern: sizePattern) {
+            let range = NSRange(lower.startIndex..., in: lower)
+            for match in regex.matches(in: lower, range: range) {
+                guard let r = Range(match.range, in: lower) else { continue }
+                let found = lower[r].replacingOccurrences(of: " ", with: "")
+                if !expected.replacingOccurrences(of: " ", with: "").contains(found) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    /// The sentence we can always stand behind.
+    static func plainSummary(duplicates: Int, screenshots: Int, videos: Int, bytes: Int64) -> String {
+        let total = duplicates + screenshots + videos
+        guard total > 0 else { return "Nothing to clean up right now." }
+        var parts: [String] = []
+        if duplicates > 0 { parts.append("\(duplicates) duplicate\(duplicates == 1 ? "" : "s")") }
+        if screenshots > 0 { parts.append("\(screenshots) screenshot\(screenshots == 1 ? "" : "s")") }
+        if videos > 0 { parts.append("\(videos) large video\(videos == 1 ? "" : "s")") }
+        return "Removing \(parts.joined(separator: ", ")) would free \(Bytes.string(bytes))."
     }
 
     // MARK: Session

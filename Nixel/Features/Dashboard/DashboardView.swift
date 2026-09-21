@@ -42,6 +42,9 @@ struct DashboardView: View {
             if permissions.photos.canScan, scanner.lastScanDate == nil {
                 scanner.scanPhotos(access: permissions.photos)
             }
+            if permissions.contacts.canScan, scanner.contactGroups.isEmpty {
+                scanner.scanContacts(access: permissions.contacts)
+            }
         }
     }
 
@@ -116,13 +119,19 @@ struct DashboardView: View {
                     CategoryCard(category: category, summary: scanner.summary(category))
                 }
                 .buttonStyle(.plain)
-                .disabled(!scanner.summary(category).hasFindings)
-                .opacity(scanner.summary(category).hasFindings ? 1 : 0.65)
+                .disabled(!isReachable(category))
+                .opacity(isReachable(category) ? 1 : 0.65)
             }
         }
         .navigationDestination(for: CleanupCategory.self) { category in
             CategoryDetailView(category: category)
         }
+    }
+
+    /// Contacts stays tappable even with nothing found, because that screen is also where
+    /// the user grants contacts access in the first place.
+    private func isReachable(_ category: CleanupCategory) -> Bool {
+        category == .duplicateContacts || scanner.summary(category).hasFindings
     }
 
     // MARK: Footer

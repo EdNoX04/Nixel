@@ -20,6 +20,9 @@ final class ScanCoordinator {
     var screenshots: [PhotoAsset] = []
     var largeVideos: [PhotoAsset] = []
     var blurryPhotos: [PhotoAsset] = []
+    var contactGroups: [ContactDuplicateGroup] = []
+    var contactsScanned = 0
+    var contactError: String?
 
     /// Set when the library we scanned was only the subset a "limited access" user picked.
     var scannedLimitedLibrary = false
@@ -29,6 +32,7 @@ final class ScanCoordinator {
     private(set) var photosAnalysed = 0
 
     private let engine = SimilarityEngine()
+    private let contactScanner = ContactScanner()
     let triage = ScreenshotTriage()
     private var scanTask: Task<Void, Never>?
 
@@ -55,6 +59,42 @@ final class ScanCoordinator {
     }
 
     // MARK: Scanning
+
+    // MARK: Contacts
+
+    func scanContacts(access: ContactsAccess) {
+        guard access.canScan else {
+            summaries[.duplicateContacts]?.state = .blocked("Contacts access is off")
+            return
+        }
+        summaries[.duplicateContacts]?.state = .scanning(0)
+
+        Task { [contactScanner] in
+            let records: [ContactRecord]
+            do {
+                records = try await contactScanner.fetchAll()
+            } catch {
+                self.summaries[.duplicateContacts]?.state = .blocked("Couldn't read contacts")
+                self.contactError = error.localizedDescription
+                return
+            }
+            let groups = await contactScanner.duplicateGroups(from: records)
+            self.contactsScanned = records.count
+            self.contactGroups = groups
+            self.summaries[.duplicateContacts] = CategorySummary(
+                state: .ready,
+                itemCount: groups.reduce(0) { $0 + $1.others.count },
+                reclaimableBytes: 0)
+        }
+    }
+
+    func removeContactGroup(_ id: String) {
+        contactGroups.removeAll { $0.id == id }
+        summaries[.duplicateContacts] = CategorySummary(
+            state: .ready,
+            itemCount: contactGroups.reduce(0) { $0 + $1.others.count },
+            reclaimableBytes: 0)
+    }
 
     func refreshStorage() {
         storage = DeviceStorage.snapshot()

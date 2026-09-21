@@ -100,6 +100,24 @@ struct AgentSettingsView: View {
                     Text("Last found \(Bytes.string(finding.bytes)) across \(finding.duplicates + finding.screenshots + finding.videos) items.")
                 }
             }
+
+
+            #if DEBUG
+            Section {
+                Button("Seed test contacts") {
+                    try? DebugContactSeed.seed()
+                    agent.seedMessage = "Seeded \(DebugContactSeed.fixtures.count) contacts"
+                }
+                Button("Wipe all contacts", role: .destructive) {
+                    try? DebugContactSeed.wipe()
+                    agent.seedMessage = "Contacts cleared"
+                }
+            } header: {
+                Text("Developer")
+            } footer: {
+                Text(agent.seedMessage ?? "Debug builds only — never shipped.")
+            }
+            #endif
         }
         .navigationTitle("Daily Agent")
         .navigationBarTitleDisplayMode(.inline)
@@ -111,6 +129,7 @@ struct AgentSettingsView: View {
 @MainActor
 final class AgentViewModel {
     var isRunning = false
+    var seedMessage: String?
     var lastFinding: NixelAgent.Finding?
 
     var isEnabled: Bool {
