@@ -1,0 +1,61 @@
+name: Nixel
+options:
+  bundleIdPrefix: com.nilabha
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  Nixel:
+    type: application
+    platform: iOS
+    sources:
+      - path: Nixel
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nilabha.nixel
+        PRODUCT_NAME: Nixel
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        ENABLE_PREVIEWS: YES
+    info:
+      path: Nixel/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Nixel
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # --- Privacy. TCC terminates the app on a permission request with no matching
+        # --- string here, so these are load-bearing, not boilerplate.
+        NSPhotoLibraryUsageDescription: >-
+          Nixel scans the photos and videos on this device to find duplicates,
+          near-identical shots, screenshots and large videos so you can free up space.
+          Your photos are never uploaded or shared — everything happens on your iPhone.
+        NSContactsUsageDescription: >-
+          Nixel looks through your contacts to find duplicate entries you can merge or
+          remove. Your contacts stay on this device and are never uploaded or shared.
+        # We present the "select more photos" picker ourselves, at a moment that makes
+        # sense, instead of letting iOS surface it at random on every launch.
+        PHPhotoLibraryPreventAutomaticLimitedAccessAlert: true
+        ITSAppUsesNonExemptEncryption: false
+        # The daily agent runs as a processing task while the phone is idle and on power.
+        UIBackgroundModes:
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.nilabha.nixel.dailyscan
