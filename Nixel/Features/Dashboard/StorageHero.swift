@@ -42,6 +42,8 @@ struct StorageHero: View {
 
     // MARK: Ambient glow
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private func aura(_ t: TimeInterval) -> some View {
         // Breathing: slow when idle, quicker and stronger while working.
         let speed = isScanning ? 1.9 : 0.55
@@ -51,12 +53,18 @@ struct StorageHero: View {
         return Circle()
             .fill(
                 RadialGradient(
-                    colors: [Theme.indigo.opacity(isScanning ? 0.30 : 0.16), .clear],
+                    colors: [Theme.indigo.opacity(auraStrength), .clear],
                     center: .center, startRadius: 40, endRadius: 190
                 )
             )
             .scaleEffect(pulse)
             .blur(radius: 12)
+    }
+
+    /// Light surfaces swallow a faint glow, so it needs more presence there.
+    private var auraStrength: Double {
+        let base = colorScheme == .light ? 0.26 : 0.16
+        return isScanning ? base * 1.9 : base
     }
 
     // MARK: Orbiting particles
@@ -81,7 +89,8 @@ struct StorageHero: View {
                 let point = CGPoint(x: centre.x + cos(angle) * radius,
                                     y: centre.y + sin(angle) * radius)
                 let side = 3.0 + seed.truncatingRemainder(dividingBy: 4)
-                let alpha = (isScanning ? 0.55 : 0.30) * (0.45 + 0.55 * abs(sin(t * 0.7 + seed)))
+                let base = colorScheme == .light ? 0.45 : 0.30
+                let alpha = (isScanning ? base * 1.8 : base) * (0.45 + 0.55 * abs(sin(t * 0.7 + seed)))
 
                 let rect = CGRect(x: point.x - side / 2, y: point.y - side / 2,
                                   width: side, height: side)

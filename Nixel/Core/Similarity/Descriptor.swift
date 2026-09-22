@@ -19,8 +19,13 @@ enum DescriptorKind: UInt16 {
     }
 
     /// Distances are Euclidean over unit vectors, so they live in 0...2.
-    /// Both sets were measured against a fixture library with known duplicate groups
-    /// rather than guessed.
+    ///
+    /// Measured against a 266-photo library with known groups, not guessed. Neither engine
+    /// separates perfectly at that size — the worst true pair and the best unrelated pair
+    /// overlap, because real libraries contain genuinely similar unrelated photos. So both
+    /// thresholds sit below the nearest unrelated pair rather than above the furthest true
+    /// one: missing a duplicate costs nothing, inventing one puts a stranger's photo in a
+    /// delete list.
     var duplicateThreshold: Float {
         switch self {
         case .vision: return 0.10
@@ -31,7 +36,10 @@ enum DescriptorKind: UInt16 {
     var similarThreshold: Float {
         switch self {
         case .vision: return 0.26
-        case .grayscale: return 0.425
+        // Measured across a 266-photo library: the nearest *unrelated* pair sits at 0.237,
+        // so anything at or above that manufactures duplicates. 0.22 buys a margin under
+        // it. This misses some genuine matches, which is the right way to be wrong.
+        case .grayscale: return 0.22
         }
     }
 

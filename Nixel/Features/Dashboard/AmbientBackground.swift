@@ -13,7 +13,19 @@ import SwiftUI
 struct AmbientBackground: View {
     var isScanning: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var tints: [Color] { [Theme.indigo, Theme.teal, Theme.success] }
+
+    /// Light mode needs a good deal more of everything.
+    ///
+    /// The first version was tuned against a near-black background and all but vanished on
+    /// white: the palette's light renditions are darker and less luminous, and the drifting
+    /// squares were filled with white, which is simply invisible on a light surface.
+    private var isLight: Bool { colorScheme == .light }
+    private var meshOpacity: Double { isLight ? 0.72 : 0.42 }
+    private var pixelColour: Color { isLight ? Theme.indigo : .white }
+    private var pixelOpacity: Double { isLight ? 0.26 : 0.13 }
 
     var body: some View {
         TimelineView(.animation) { timeline in
@@ -24,8 +36,9 @@ struct AmbientBackground: View {
             ZStack {
                 if #available(iOS 18.0, *) {
                     mesh(t: t, rate: rate)
-                        .opacity(0.42 * lift)
-                        .blur(radius: 26)
+                        .opacity(meshOpacity * lift)
+                        .blur(radius: isLight ? 34 : 26)
+                        .saturation(isLight ? 1.25 : 1.0)
                 } else {
                     legacyBlobs(t: t, rate: rate, lift: lift)
                 }
@@ -73,7 +86,7 @@ struct AmbientBackground: View {
                 a.opacity(0.55), b.opacity(0.35), c.opacity(0.50),
                 c.opacity(0.40), a.opacity(0.65), b.opacity(0.45),
                 b.opacity(0.45), c.opacity(0.35), a.opacity(0.55)
-            ],
+            ].map { $0.opacity(isLight ? 0.9 : 0.65) },
             smoothsColors: true
         )
     }
@@ -96,7 +109,7 @@ struct AmbientBackground: View {
                 context.fill(
                     Path(ellipseIn: rect),
                     with: .radialGradient(
-                        Gradient(colors: [tints[blob.hue].opacity(0.22 * lift),
+                        Gradient(colors: [tints[blob.hue].opacity((isLight ? 0.38 : 0.22) * lift),
                                           tints[blob.hue].opacity(0)]),
                         center: CGPoint(x: cx, y: cy),
                         startRadius: 0, endRadius: blob.radius)
@@ -111,7 +124,7 @@ struct AmbientBackground: View {
     /// The icon's squares, rising slowly through the gradient.
     private func driftingPixels(t: TimeInterval, rate: Double, lift: Double) -> some View {
         Canvas { context, size in
-            for index in 0..<18 {
+            for index in 0..<26 {
                 let seed = Double(index)
                 let speed = (0.012 + (seed.truncatingRemainder(dividingBy: 5)) * 0.005) * rate
                 let progress = (t * speed + seed * 0.137).truncatingRemainder(dividingBy: 1)
@@ -122,13 +135,13 @@ struct AmbientBackground: View {
                 guard y > -0.08 else { continue }
 
                 let fade = min(1, min(progress * 5, (1 - progress) * 2.4))
-                let alpha = 0.13 * lift * fade
+                let alpha = pixelOpacity * lift * fade
                 guard alpha > 0.008 else { continue }
 
                 let side = 5 + (seed.truncatingRemainder(dividingBy: 4)) * 4
                 let rect = CGRect(x: x * size.width, y: y * size.height, width: side, height: side)
                 context.fill(Path(roundedRect: rect, cornerRadius: side * 0.28),
-                             with: .color(.white.opacity(alpha)))
+                             with: .color(pixelColour.opacity(alpha)))
             }
         }
     }

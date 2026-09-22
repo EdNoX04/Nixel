@@ -105,6 +105,19 @@ actor SimilarityEngine {
     }
 
     /// Groups prepared assets into sets of near-identical photos.
+    ///
+    /// ## Why this is not union-find any more
+    ///
+    /// The first implementation linked any pair under the threshold and let union-find
+    /// merge the components. On a small fixture set that was fine. On a 266-photo library
+    /// it produced a single 23-member "group" containing hay bales, a shoreline and a
+    /// forest: transitivity means one bad link welds two unrelated groups together, and a
+    /// chain of near-misses drags in everything along the way.
+    ///
+    /// This uses leader clustering instead. Every photo is compared against a cluster's
+    /// *anchor*, never against an arbitrary member, so membership cannot chain: to join a
+    /// group a photo must resemble the one shot that defines it. A false link can add one
+    /// wrong photo; it can no longer merge two groups.
     func group(_ assets: [PhotoAsset], threshold: Float? = nil) -> [PhotoGroup] {
         // Only compare vectors produced by the same engine — a Vision print and a
         // grayscale descriptor live in different spaces and distances between them
@@ -129,7 +142,10 @@ actor SimilarityEngine {
         let dimensions = vDSP_Length(kind.dimensions)
         let stride = kind.dimensions
         let similarThreshold = threshold ?? kind.similarThreshold
+        let squaredThreshold = similarThreshold * similarThreshold
+        let duplicateSquared = kind.duplicateThreshold * kind.duplicateThreshold
 
+        // Time order: near-duplicates overwhelmingly sit next to each other in time.
         let order = usable.indices.sorted {
             let l = usable[$0].creationDate ?? .distantPast
             let r = usable[$1].creationDate ?? .distantPast
@@ -139,58 +155,81 @@ actor SimilarityEngine {
         var flat = [Float](); flat.reserveCapacity(order.count * stride)
         for index in order { flat.append(contentsOf: vectors[index]) }
 
-        var union = UnionFind(count: order.count)
+        /// position -> cluster id; clusters keyed by their anchor position.
+        var clusterOf = [Int](repeating: -1, count: order.count)
+        var anchors: [Int] = []                 // positions that define a cluster
+        var members: [Int: [Int]] = [:]         // anchor position -> member positions
 
-        // Pass 1 — sliding window over time. Catches bursts, retakes and edits.
-        let squaredThreshold = similarThreshold * similarThreshold
         flat.withUnsafeBufferPointer { buffer in
             let base = buffer.baseAddress!
-            for i in 0..<order.count {
-                let limit = min(i + timeWindow, order.count - 1)
-                guard limit > i else { continue }
-                for j in (i + 1)...limit {
-                    var squared: Float = 0
-                    vDSP_distancesq(base + i * stride, 1, base + j * stride, 1, &squared, dimensions)
-                    if squared <= squaredThreshold { union.union(i, j) }
+
+            func distanceSquared(_ a: Int, _ b: Int) -> Float {
+                var value: Float = 0
+                vDSP_distancesq(base + a * stride, 1, base + b * stride, 1, &value, dimensions)
+                return value
+            }
+
+            for position in 0..<order.count {
+                var bestAnchor = -1
+                var bestDistance = Float.greatestFiniteMagnitude
+
+                // Only anchors still inside the time window are candidates.
+                for anchor in anchors.reversed() {
+                    guard position - anchor <= timeWindow else { break }
+                    let d = distanceSquared(anchor, position)
+                    if d <= squaredThreshold && d < bestDistance {
+                        bestDistance = d
+                        bestAnchor = anchor
+                    }
+                }
+
+                if bestAnchor >= 0 {
+                    clusterOf[position] = bestAnchor
+                    members[bestAnchor, default: [bestAnchor]].append(position)
+                } else {
+                    clusterOf[position] = position
+                    anchors.append(position)
+                    members[position] = [position]
                 }
             }
-        }
 
-        // Pass 2 — exact re-saves regardless of when they happened. A true re-save keeps
-        // its pixel dimensions, so bucketing by dimensions is a cheap way to catch the
-        // same picture downloaded twice months apart, which the time window would miss.
-        var buckets: [Int: [Int]] = [:]
-        for (position, index) in order.enumerated() {
-            let asset = usable[index]
-            buckets[asset.pixelWidth << 16 ^ asset.pixelHeight, default: []].append(position)
-        }
-        let duplicateSquared = kind.duplicateThreshold * kind.duplicateThreshold
-        flat.withUnsafeBufferPointer { buffer in
-            let base = buffer.baseAddress!
+            // Second pass — exact re-saves that fell outside the time window.
+            // A true re-save keeps its pixel dimensions, so bucket on those and compare
+            // against anchors only, at the much tighter duplicate threshold.
+            var buckets: [Int: [Int]] = [:]
+            for position in 0..<order.count {
+                let asset = usable[order[position]]
+                buckets[asset.pixelWidth << 16 ^ asset.pixelHeight, default: []].append(position)
+            }
             for (_, positions) in buckets where positions.count > 1 && positions.count <= 2_000 {
-                for a in 0..<positions.count {
-                    for b in (a + 1)..<positions.count {
-                        let i = positions[a], j = positions[b]
-                        if union.find(i) == union.find(j) { continue }
-                        var squared: Float = 0
-                        vDSP_distancesq(base + i * stride, 1, base + j * stride, 1, &squared, dimensions)
-                        if squared <= duplicateSquared { union.union(i, j) }
+                for position in positions where members[position] == nil || members[position]!.count == 1 {
+                    for anchor in positions where anchor != position && members[anchor] != nil {
+                        guard clusterOf[position] != anchor else { continue }
+                        if distanceSquared(anchor, position) <= duplicateSquared {
+                            // Move it out of its singleton cluster into the anchor's.
+                            let old = clusterOf[position]
+                            if old == position { members.removeValue(forKey: position)
+                                                 anchors.removeAll { $0 == position } }
+                            else { members[old]?.removeAll { $0 == position } }
+                            clusterOf[position] = anchor
+                            members[anchor]?.append(position)
+                            break
+                        }
                     }
                 }
             }
         }
 
-        var components: [Int: [Int]] = [:]
-        for position in 0..<order.count {
-            components[union.find(position), default: []].append(position)
-        }
-
         var groups: [PhotoGroup] = []
-        for (_, positions) in components where positions.count > 1 {
-            let members = positions.map { usable[order[$0]] }
-            let best = Self.pickBest(from: members)
-            let id = members.map(\.id).sorted().first ?? UUID().uuidString
-            groups.append(PhotoGroup(id: id, assets: Self.sortForDisplay(members, bestID: best), bestID: best))
+        for (_, positions) in members where positions.count > 1 {
+            let unique = Array(Set(positions)).sorted()
+            let people = unique.map { usable[order[$0]] }
+            guard people.count > 1 else { continue }
+            let best = Self.pickBest(from: people)
+            let id = people.map(\.id).sorted().first ?? UUID().uuidString
+            groups.append(PhotoGroup(id: id,
+                                     assets: Self.sortForDisplay(people, bestID: best),
+                                     bestID: best))
         }
 
         return groups.sorted { $0.reclaimableBytes > $1.reclaimableBytes }
@@ -272,37 +311,5 @@ actor SimilarityEngine {
         let descriptor = DescriptorEngine.compute(for: cgImage)
         let sharpness = Sharpness.measure(cgImage) ?? 0
         return (descriptor, sharpness)
-    }
-}
-
-/// Classic disjoint-set with path compression — turns "these two photos match" pairs into
-/// groups without ever materialising an N x N matrix.
-private struct UnionFind {
-    private var parent: [Int]
-    private var rank: [Int]
-
-    init(count: Int) {
-        parent = Array(0..<count)
-        rank = Array(repeating: 0, count: count)
-    }
-
-    mutating func find(_ x: Int) -> Int {
-        var root = x
-        while parent[root] != root { root = parent[root] }
-        var current = x
-        while parent[current] != root {
-            let next = parent[current]
-            parent[current] = root
-            current = next
-        }
-        return root
-    }
-
-    mutating func union(_ a: Int, _ b: Int) {
-        let ra = find(a), rb = find(b)
-        guard ra != rb else { return }
-        if rank[ra] < rank[rb] { parent[ra] = rb }
-        else if rank[ra] > rank[rb] { parent[rb] = ra }
-        else { parent[rb] = ra; rank[ra] += 1 }
     }
 }

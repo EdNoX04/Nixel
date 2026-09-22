@@ -16,6 +16,34 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
 targets:
+  # ---- Home Screen / Lock Screen widget ----
+  # Deliberately no App Group: that entitlement needs a paid Apple Developer
+  # membership and declaring it on a free personal team breaks device signing.
+  # The widget reads volume capacity itself, which any process can do.
+  NixelWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: NixelWidget
+      # Shared with the app rather than duplicated, so the ring and the colours
+      # stay identical to what the app draws.
+      - path: Nixel/Core/Storage/DeviceStorage.swift
+      - path: Nixel/DesignSystem/Theme.swift
+      - path: Nixel/DesignSystem/AppPalette.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nilabha.nixel.widget
+        PRODUCT_NAME: NixelWidget
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: NixelWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Nixel
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
   Nixel:
     type: application
     platform: iOS
@@ -32,6 +60,9 @@ targets:
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         ENABLE_PREVIEWS: YES
+    dependencies:
+      - target: NixelWidget
+        embed: true
     info:
       path: Nixel/Resources/Info.plist
       properties:

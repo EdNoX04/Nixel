@@ -15,6 +15,7 @@
 		17161AC0D60299154A3927F1 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 125500870DB46E9D890DA950 /* Theme.swift */; };
 		177742D5AF096BAD8D2A164D /* CleanupSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B71A861EDB34E830DFD3D96 /* CleanupSelection.swift */; };
 		1AE83DC63388715699686B48 /* PhotoAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A53FD629FA9682D1C4EB80 /* PhotoAsset.swift */; };
+		1C69A33960A8288A20D76B4E /* NixelWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D40DFC0BE3C0315E1389B60A /* NixelWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2388E8C391E8645127206D24 /* AppPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238B5121A564E75B4F02A9B /* AppPalette.swift */; };
 		272A4CDD1454550FB64F0349 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4F4743DA725EDFE2417AFE6 /* Assets.xcassets */; };
 		2B87927FCFAF1883618A4E05 /* AppearanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ACFA5ED4DB476EDBC76DD97 /* AppearanceView.swift */; };
@@ -32,16 +33,21 @@
 		5F3298D6512A13B7035A3D04 /* ScreenshotTriage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EA640AF3D8DB030522D33 /* ScreenshotTriage.swift */; };
 		61A913013DA67C9C11176521 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E235AAA8B35BE9FD8C719E /* WelcomeView.swift */; };
 		66C8D80104D7AAB48ED66A0B /* SwipeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 470C6D9D188457FC93BFBFDE /* SwipeReviewView.swift */; };
+		68D82058FB4EB4C52E6F551B /* NixelWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62501F1CC8635B869EF1D373 /* NixelWidgetBundle.swift */; };
 		6AD0987FEF561A51F06D7958 /* AgentFindingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED98ED9F8DE8C7906129B16 /* AgentFindingCard.swift */; };
+		6DB299F6931FA1626EDBA6A0 /* AppPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238B5121A564E75B4F02A9B /* AppPalette.swift */; };
 		6FFCDEAEC7936740AAD0D1E2 /* DuplicateContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF42D40A2D0D2335285CE54 /* DuplicateContactsView.swift */; };
 		7D784B848572FF351CA73DB5 /* StorageHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C617B6DC1EC91601F839641 /* StorageHero.swift */; };
 		83C378DF0554F5B3201979B6 /* NixelAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64A347EDFFAC981D3AA3863 /* NixelAgent.swift */; };
 		85EFDFFD8772B4180AAADAA3 /* CleanupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A715EAC578B42D04CDDF39B /* CleanupModels.swift */; };
+		8D8885FF24FB4B3F2EC1F4B2 /* StorageWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9EBD3BAD6FBB499AFCCF3D /* StorageWidget.swift */; };
 		8EA2CD8709DE52DA20B94358 /* Descriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F92E166CD956FF5E38FD12 /* Descriptor.swift */; };
 		95BAF32099F0E0EB78B5CDC2 /* FeaturePrintStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8589641A6989C06E8BF4D10E /* FeaturePrintStore.swift */; };
 		9811C09D83DDCF8E0B77617F /* SimilarityEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E128E399673432D9595F4D32 /* SimilarityEngine.swift */; };
 		A0AC77FEDFD075F6E545C395 /* PhotoInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA113D5C24F265EFBA768B5 /* PhotoInsight.swift */; };
+		A0E45FC40EE9C358B98F7A84 /* DeviceStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424490F0A6734A292F12B042 /* DeviceStorage.swift */; };
 		A230E8587FD2039D9FAAC3B1 /* SelectionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13203143BD165F360FF5608F /* SelectionBar.swift */; };
+		A9678BACAD4C7A0EB8F9F5E7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 125500870DB46E9D890DA950 /* Theme.swift */; };
 		A9ED13B771E90D7D489AD0B2 /* CategoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B27D6902B231135769463E /* CategoryDetailView.swift */; };
 		AC5ECFC229E38996112719BF /* ScreenshotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC49C865B5C0AADC7DB5F6D7 /* ScreenshotsView.swift */; };
 		ACB57FB0FCFABD19BAA8BA57 /* AssetThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AAAFB3328B7240841CBBD0 /* AssetThumbnailView.swift */; };
@@ -59,6 +65,30 @@
 		F5A2FF891395EFB6C2BA4353 /* ContactMerger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B44FA81F09F3A13E83371F /* ContactMerger.swift */; };
 		FA129D66DFA0677B8ECCB6AC /* Sharpness.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0AF550DD26D63E92D447628 /* Sharpness.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		087C63B455C4A89CD9148399 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4AB31C5C847362F431F3F0B3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D7123B0911902961B3AFE239;
+			remoteInfo = NixelWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F015DBAD872F11AC7D533B5C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				1C69A33960A8288A20D76B4E /* NixelWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		019D68DF51E9ABA34C7F3A22 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -80,6 +110,8 @@
 		55AAAFB3328B7240841CBBD0 /* AssetThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetThumbnailView.swift; sourceTree = "<group>"; };
 		578C848AC722E6962BE49CB4 /* AccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountStore.swift; sourceTree = "<group>"; };
 		60781DBE88F0694B7C0AD000 /* PhotoFetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoFetch.swift; sourceTree = "<group>"; };
+		62501F1CC8635B869EF1D373 /* NixelWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NixelWidgetBundle.swift; sourceTree = "<group>"; };
+		6A9EBD3BAD6FBB499AFCCF3D /* StorageWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageWidget.swift; sourceTree = "<group>"; };
 		6B71A861EDB34E830DFD3D96 /* CleanupSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupSelection.swift; sourceTree = "<group>"; };
 		72245B2CD0A6224C6C190E60 /* AmbientBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmbientBackground.swift; sourceTree = "<group>"; };
 		72BD219A845C94C3E18427FA /* DebugContactSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugContactSeed.swift; sourceTree = "<group>"; };
@@ -87,6 +119,7 @@
 		7976A21D29DAA0870D9758ED /* SimilarPhotosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarPhotosView.swift; sourceTree = "<group>"; };
 		7ACFA5ED4DB476EDBC76DD97 /* AppearanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceView.swift; sourceTree = "<group>"; };
 		7CC25DB91671F900EDC1E716 /* ReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewView.swift; sourceTree = "<group>"; };
+		7DF669F52A42C8C4C5B5C546 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7ED98ED9F8DE8C7906129B16 /* AgentFindingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFindingCard.swift; sourceTree = "<group>"; };
 		806297AE7D57A6FC328EB271 /* LargeVideosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeVideosView.swift; sourceTree = "<group>"; };
 		8238B5121A564E75B4F02A9B /* AppPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPalette.swift; sourceTree = "<group>"; };
@@ -105,6 +138,7 @@
 		C979060BE2405F3C5B86A065 /* NixelApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NixelApp.swift; sourceTree = "<group>"; };
 		CC49C865B5C0AADC7DB5F6D7 /* ScreenshotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotsView.swift; sourceTree = "<group>"; };
 		D24EA640AF3D8DB030522D33 /* ScreenshotTriage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTriage.swift; sourceTree = "<group>"; };
+		D40DFC0BE3C0315E1389B60A /* NixelWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = NixelWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4166C47E64306E73A7D7498 /* ContactScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactScanner.swift; sourceTree = "<group>"; };
 		D64A347EDFFAC981D3AA3863 /* NixelAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NixelAgent.swift; sourceTree = "<group>"; };
 		D71FBA59F375C6E1E511AB58 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
@@ -174,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				E5D72F424621A0BBE7ABC95C /* Nixel.app */,
+				D40DFC0BE3C0315E1389B60A /* NixelWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -211,6 +246,16 @@
 				578C848AC722E6962BE49CB4 /* AccountStore.swift */,
 			);
 			path = Account;
+			sourceTree = "<group>";
+		};
+		69837DE35522A89306692266 /* NixelWidget */ = {
+			isa = PBXGroup;
+			children = (
+				7DF669F52A42C8C4C5B5C546 /* Info.plist */,
+				62501F1CC8635B869EF1D373 /* NixelWidgetBundle.swift */,
+				6A9EBD3BAD6FBB499AFCCF3D /* StorageWidget.swift */,
+			);
+			path = NixelWidget;
 			sourceTree = "<group>";
 		};
 		77372975A2DE1A6EAADD1985 /* Settings */ = {
@@ -278,6 +323,7 @@
 			isa = PBXGroup;
 			children = (
 				895FE54EB8E87EBD2FDE06A6 /* Nixel */,
+				69837DE35522A89306692266 /* NixelWidget */,
 				338F659FA729DA3A501B9BD8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -395,16 +441,35 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		D7123B0911902961B3AFE239 /* NixelWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC5623F47F3239DBE9EC1808 /* Build configuration list for PBXNativeTarget "NixelWidget" */;
+			buildPhases = (
+				DE6A03A76188FFE04E70E67E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NixelWidget;
+			packageProductDependencies = (
+			);
+			productName = NixelWidget;
+			productReference = D40DFC0BE3C0315E1389B60A /* NixelWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		FCC3B7872928665502396D7C /* Nixel */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BED996757ED8ECA1A43D6233 /* Build configuration list for PBXNativeTarget "Nixel" */;
 			buildPhases = (
 				D2BB6B7CE560A1A31C228152 /* Sources */,
 				39E089242795C6F2EF8DE610 /* Resources */,
+				F015DBAD872F11AC7D533B5C /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E1D3ABD174D52F7562983042 /* PBXTargetDependency */,
 			);
 			name = Nixel;
 			packageProductDependencies = (
@@ -422,6 +487,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					D7123B0911902961B3AFE239 = {
+						ProvisioningStyle = Automatic;
+					};
 					FCC3B7872928665502396D7C = {
 						ProvisioningStyle = Automatic;
 					};
@@ -441,6 +509,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				D7123B0911902961B3AFE239 /* NixelWidget */,
 				FCC3B7872928665502396D7C /* Nixel */,
 			);
 		};
@@ -515,9 +584,47 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DE6A03A76188FFE04E70E67E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6DB299F6931FA1626EDBA6A0 /* AppPalette.swift in Sources */,
+				A0E45FC40EE9C358B98F7A84 /* DeviceStorage.swift in Sources */,
+				68D82058FB4EB4C52E6F551B /* NixelWidgetBundle.swift in Sources */,
+				8D8885FF24FB4B3F2EC1F4B2 /* StorageWidget.swift in Sources */,
+				A9678BACAD4C7A0EB8F9F5E7 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		E1D3ABD174D52F7562983042 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D7123B0911902961B3AFE239 /* NixelWidget */;
+			targetProxy = 087C63B455C4A89CD9148399 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		207CF3BD63421C09A34E64CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				INFOPLIST_FILE = NixelWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.nilabha.nixel.widget;
+				PRODUCT_NAME = NixelWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		6058718F892D3956E4C387B1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -583,6 +690,24 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		673615597C027661D8C54ADC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				INFOPLIST_FILE = NixelWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.nilabha.nixel.widget;
+				PRODUCT_NAME = NixelWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -694,6 +819,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AC5623F47F3239DBE9EC1808 /* Build configuration list for PBXNativeTarget "NixelWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				673615597C027661D8C54ADC /* Debug */,
+				207CF3BD63421C09A34E64CE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		BED996757ED8ECA1A43D6233 /* Build configuration list for PBXNativeTarget "Nixel" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
