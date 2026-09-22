@@ -61,7 +61,7 @@ actor SimilarityEngine {
         let concurrency = min(6, max(2, ProcessInfo.processInfo.activeProcessorCount - 1))
         var done = 0
 
-        await withTaskGroup(of: (String, Date?, Descriptor?, Double).self) { group in
+        await withTaskGroup(of: (String, Date?, Descriptor?, Double, Int).self) { group in
             var next = 0
 
             func schedule() {
@@ -71,15 +71,16 @@ actor SimilarityEngine {
                 group.addTask {
                     // An unreadable asset (iCloud-only original, corrupt file) yields nil,
                     // which we still cache so it is not retried on every scan.
-                    let (descriptor, sharpness) = await Self.analyse(asset.phAsset)
-                    return (asset.id, asset.phAsset.modificationDate, descriptor, sharpness)
+                    let (descriptor, sharpness, people) = await Self.analyse(asset.phAsset)
+                    return (asset.id, asset.phAsset.modificationDate, descriptor, sharpness, people)
                 }
             }
 
             for _ in 0..<concurrency { schedule() }
 
-            while let (id, modified, descriptor, sharpness) = await group.next() {
-                store.store(descriptor, sharpness: sharpness, for: id, modified: modified)
+            while let (id, modified, descriptor, sharpness, people) = await group.next() {
+                store.store(descriptor, sharpness: sharpness, people: people,
+                            for: id, modified: modified)
                 done += 1
                 if done % 20 == 0 || done == missing.count {
                     progress(Double(done) / Double(missing.count))
@@ -102,6 +103,17 @@ actor SimilarityEngine {
             scores[asset.id] = record.sharpness
         }
         return scores
+    }
+
+    /// People counts per asset id, for the bulk-selection brake and the badge.
+    func peopleCounts(for assets: [PhotoAsset]) -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for asset in assets {
+            guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate)
+            else { continue }
+            counts[asset.id] = record.people
+        }
+        return counts
     }
 
     /// Groups prepared assets into sets of near-identical photos.
@@ -134,6 +146,7 @@ actor SimilarityEngine {
             guard record.kind == kind else { continue }
             var enriched = asset
             enriched.sharpness = record.sharpness
+            enriched.peopleCount = record.people
             usable.append(enriched)
             vectors.append(record.vector)
         }
@@ -246,6 +259,10 @@ actor SimilarityEngine {
     static func pickBest(from assets: [PhotoAsset]) -> String {
         let best = assets.max { a, b in
             if a.isFavorite != b.isFavorite { return !a.isFavorite && b.isFavorite }
+            // A shot with more people in it is the one worth keeping, ahead of any
+            // measure of technical quality.
+            let pa = a.peopleCount ?? 0, pb = b.peopleCount ?? 0
+            if pa != pb { return pa < pb }
             if let sa = a.sharpness, let sb = b.sharpness, abs(sa - sb) > 0.05 { return sa < sb }
             if a.pixels != b.pixels { return a.pixels < b.pixels }
             if a.bytes != b.bytes { return a.bytes < b.bytes }
@@ -306,10 +323,11 @@ actor SimilarityEngine {
 
     /// One decode, two measurements. Loading the thumbnail is the expensive part, so
     /// sharpness is computed from the same image rather than fetching it twice.
-    nonisolated static func analyse(_ asset: PHAsset) async -> (Descriptor?, Double) {
-        guard let cgImage = await analysisImage(for: asset) else { return (nil, 0) }
+    nonisolated static func analyse(_ asset: PHAsset) async -> (Descriptor?, Double, Int) {
+        guard let cgImage = await analysisImage(for: asset) else { return (nil, 0, 0) }
         let descriptor = DescriptorEngine.compute(for: cgImage)
         let sharpness = Sharpness.measure(cgImage) ?? 0
-        return (descriptor, sharpness)
+        let people = PeopleDetector.count(in: cgImage)
+        return (descriptor, sharpness, people)
     }
 }

@@ -32,6 +32,7 @@ struct AssetThumbnailView: View {
         .overlay(alignment: .bottomLeading) { durationBadge }
         .overlay(alignment: .topTrailing) { if showsChrome { selectionMark } }
         .overlay(alignment: .topLeading) { bestBadge }
+        .overlay(alignment: .bottomTrailing) { if showsChrome { peopleBadge } }
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.thumb, style: .continuous)
                 .strokeBorder(isSelected && showsChrome ? Theme.danger : .clear, lineWidth: 3)
@@ -70,6 +71,19 @@ struct AssetThumbnailView: View {
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Theme.success))
+                .padding(5)
+        }
+    }
+
+    /// Marks a photo the bulk actions deliberately skipped.
+    @ViewBuilder
+    private var peopleBadge: some View {
+        if asset.hasPeople {
+            Image(systemName: "person.fill")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(4)
+                .background(Circle().fill(.black.opacity(0.55)))
                 .padding(5)
         }
     }

@@ -54,6 +54,8 @@ struct PhotoGridScreen: View {
                     .padding(.horizontal, Theme.Space.lg)
                     .padding(.vertical, Theme.Space.md)
 
+                    if heldBack > 0 { PeopleHeldBackNote(count: heldBack) }
+
                     LazyVGrid(columns: columns, spacing: 3) {
                         ForEach(assets) { asset in
                             GeometryReader { proxy in
@@ -94,11 +96,14 @@ struct PhotoGridScreen: View {
         .navigationDestination(isPresented: $showReview) { ReviewView() }
     }
 
+    @State private var heldBack = 0
+
     private func toggleAll() {
         if allSelected {
             selection.deselect(assets, in: category)
+            heldBack = 0
         } else {
-            selection.select(assets, in: category)
+            heldBack = selection.selectSkippingPeople(assets, in: category)
         }
     }
 }

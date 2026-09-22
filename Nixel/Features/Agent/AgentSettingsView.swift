@@ -73,6 +73,20 @@ struct AgentSettingsView: View {
                 }
 
                 HStack {
+                    Text("People detection")
+                    Spacer()
+                    Text(agent.peopleState)
+                        .foregroundStyle(agent.peopleReady ? Theme.success : .secondary)
+                }
+                .font(.subheadline)
+
+                if !agent.peopleReady {
+                    Text("Vision's detectors are neural and don't run in the Simulator. On a real iPhone, photos with people are left out of bulk selections.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
                     Text("Last run")
                     Spacer()
                     Text(agent.lastRunText).foregroundStyle(.secondary)
@@ -147,6 +161,9 @@ final class AgentViewModel {
     }
 
     var intelligenceReady: Bool { IntelligenceService.shared.availability.isAvailable }
+
+    var peopleReady: Bool { PeopleDetector.isAvailable }
+    var peopleState: String { PeopleDetector.isAvailable ? "Ready" : "Unavailable here" }
 
     var intelligenceState: String {
         switch IntelligenceService.shared.availability {

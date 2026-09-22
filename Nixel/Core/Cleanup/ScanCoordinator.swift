@@ -22,6 +22,8 @@ final class ScanCoordinator {
     var blurryPhotos: [PhotoAsset] = []
     var contactGroups: [ContactDuplicateGroup] = []
     var contactsScanned = 0
+    /// How many photos in the library contain a person.
+    var peopleCount = 0
     var contactError: String?
 
     /// Set when the library we scanned was only the subset a "limited access" user picked.
@@ -307,11 +309,21 @@ final class ScanCoordinator {
             itemCount: groups.reduce(0) { $0 + $1.others.count },
             reclaimableBytes: groups.reduce(0) { $0 + $1.reclaimableBytes })
 
-        // --- 3. Blurry photos, judged relative to this library's own sharpness. ---
+        // --- 3. People, then blurry. ---
+        let people = await engine.peopleCounts(for: photoAssets)
+        screenshots = screenshots.map { var a = $0; a.peopleCount = people[$0.id]; return a }
+        similarGroups = similarGroups.map { group in
+            var updated = group
+            updated.assets = group.assets.map { var a = $0; a.peopleCount = people[$0.id]; return a }
+            return updated
+        }
+        peopleCount = people.values.filter { $0 > 0 }.count
+
         let scores = await engine.sharpnessScores(for: photoAssets)
         let scored = photoAssets.map { asset -> PhotoAsset in
             var item = asset
             item.sharpness = scores[asset.id]
+            item.peopleCount = people[asset.id]
             return item
         }
 

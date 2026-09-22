@@ -15,6 +15,7 @@ final class FeaturePrintStore {
         var modified: Double
         var kind: DescriptorKind
         var sharpness: Double
+        var people: Int
         var vector: [Float]
     }
 
@@ -23,7 +24,7 @@ final class FeaturePrintStore {
     private let url: URL
 
     private static let magic: UInt32 = 0x52434650      // "RCFP"
-    private static let version: UInt32 = 4
+    private static let version: UInt32 = 5
 
     init(filename: String = "featureprints.bin") {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -40,10 +41,12 @@ final class FeaturePrintStore {
         return record
     }
 
-    func store(_ descriptor: Descriptor?, sharpness: Double, for id: String, modified: Date?) {
+    func store(_ descriptor: Descriptor?, sharpness: Double, people: Int,
+               for id: String, modified: Date?) {
         records[id] = Record(modified: modified?.timeIntervalSince1970 ?? 0,
                              kind: descriptor?.kind ?? .vision,
                              sharpness: sharpness,
+                             people: people,
                              vector: descriptor?.vector ?? [])
         dirty = true
     }
@@ -86,6 +89,7 @@ final class FeaturePrintStore {
             guard let modified = read(Double.self),
                   let rawKind = read(UInt16.self),
                   let sharpness = read(Double.self),
+                  let people = read(UInt16.self),
                   let dimensions = read(UInt16.self) else { break }
             let kind = DescriptorKind(rawValue: rawKind) ?? .vision
 
@@ -98,7 +102,8 @@ final class FeaturePrintStore {
             }
             cursor += byteCount
 
-            loaded[id] = Record(modified: modified, kind: kind, sharpness: sharpness, vector: vector)
+            loaded[id] = Record(modified: modified, kind: kind, sharpness: sharpness,
+                                people: Int(people), vector: vector)
         }
 
         records = loaded
@@ -118,6 +123,7 @@ final class FeaturePrintStore {
             withUnsafeBytes(of: record.modified) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: record.kind.rawValue) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: record.sharpness) { data.append(contentsOf: $0) }
+            withUnsafeBytes(of: UInt16(min(record.people, 65_535))) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: UInt16(record.vector.count)) { data.append(contentsOf: $0) }
             record.vector.withUnsafeBufferPointer { buffer in
                 data.append(UnsafeRawBufferPointer(buffer).bindMemory(to: UInt8.self))

@@ -13,6 +13,7 @@ struct ScreenshotsView: View {
     @Environment(ScanCoordinator.self) private var scanner
     @Environment(CleanupSelection.self) private var selection
     @State private var showReview = false
+    @State private var heldBack = 0
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 3)
 
@@ -47,6 +48,11 @@ struct ScreenshotsView: View {
                     VStack(alignment: .leading, spacing: Theme.Space.xl) {
                         if scanner.isTriaging {
                             triageProgress
+                        }
+
+                        if heldBack > 0 {
+                            PeopleHeldBackNote(count: heldBack)
+                                .padding(.horizontal, Theme.Space.lg)
                         }
 
                         if triageReady {
@@ -152,8 +158,9 @@ struct ScreenshotsView: View {
                 Button(allSelected ? "Deselect All" : "Select All") {
                     if allSelected {
                         selection.deselect(items, in: .screenshots)
+                        heldBack = 0
                     } else {
-                        selection.select(items, in: .screenshots)
+                        heldBack = selection.selectSkippingPeople(items, in: .screenshots)
                     }
                 }
                 .font(.subheadline.weight(.medium))

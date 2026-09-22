@@ -16,8 +16,11 @@ struct PhotoAsset: Identifiable, Hashable {
     /// Bytes this asset occupies. Resolved on demand — see `AssetSize`.
     var bytes: Int64 = 0
 
-    /// Sharpness score (variance of Laplacian). Higher is sharper. `nil` until measured.
+    /// Focus score, 0...1, higher is sharper. `nil` until measured.
     var sharpness: Double?
+
+    /// How many people Vision found. `nil` until measured, 0 means none were found.
+    var peopleCount: Int?
 
     var pixels: Int { pixelWidth * pixelHeight }
 

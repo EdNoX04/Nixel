@@ -11,6 +11,7 @@ struct SimilarPhotosView: View {
     @Environment(CleanupSelection.self) private var selection
     @Environment(ScanCoordinator.self) private var scanner
     @State private var showReview = false
+    @State private var heldBack = 0
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
 
@@ -22,6 +23,8 @@ struct SimilarPhotosView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Theme.Space.xl) {
+                        if heldBack > 0 { PeopleHeldBackNote(count: heldBack) }
+
                         if scanner.summary(.blurryPhotos).hasFindings {
                             NavigationLink(value: CleanupCategory.blurryPhotos) {
                                 CategoryCard(category: .blurryPhotos,
@@ -92,12 +95,13 @@ struct SimilarPhotosView: View {
         let extras = group.others
         if extras.allSatisfy({ selection.isSelected($0.id, in: .similarPhotos) }) {
             selection.deselect(extras, in: .similarPhotos)
+            heldBack = 0
         } else {
-            selection.select(extras, in: .similarPhotos)
+            heldBack = selection.selectSkippingPeople(extras, in: .similarPhotos)
         }
     }
 
     private func selectAllExtras() {
-        selection.select(groups.flatMap(\.others), in: .similarPhotos)
+        heldBack = selection.selectSkippingPeople(groups.flatMap(\.others), in: .similarPhotos)
     }
 }

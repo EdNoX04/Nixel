@@ -67,6 +67,19 @@ final class CleanupSelection {
         assets[category] = set
     }
 
+    /// Bulk selection, minus anything with a person in it.
+    ///
+    /// A tap that selects two hundred photos at once is exactly where an irreplaceable
+    /// one gets swept up. Photos containing people are left for the user to pick
+    /// individually; the screens that call this say so rather than silently skipping them.
+    /// Returns how many were held back.
+    @discardableResult
+    func selectSkippingPeople(_ list: [PhotoAsset], in category: CleanupCategory) -> Int {
+        let safe = list.filter { !$0.hasPeople }
+        select(safe, in: category)
+        return list.count - safe.count
+    }
+
     func select(_ list: [PhotoAsset], in category: CleanupCategory) {
         var set = assets[category] ?? []
         for asset in list {
