@@ -44,6 +44,7 @@
 		E18B677BD6297AD42B31FA20 /* AgentSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0938C5A6B998EDBB678A5E19 /* AgentSettingsView.swift */; };
 		EA0097083FC9871BAFB1E818 /* PhotoAccessHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2291B877EC497EBA9E46929 /* PhotoAccessHelper.swift */; };
 		F5A2FF891395EFB6C2BA4353 /* ContactMerger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B44FA81F09F3A13E83371F /* ContactMerger.swift */; };
+		FA129D66DFA0677B8ECCB6AC /* Sharpness.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0AF550DD26D63E92D447628 /* Sharpness.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -82,6 +83,7 @@
 		D64A347EDFFAC981D3AA3863 /* NixelAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NixelAgent.swift; sourceTree = "<group>"; };
 		D71FBA59F375C6E1E511AB58 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		DCA6AFB519179672C96E5E35 /* ContactModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactModels.swift; sourceTree = "<group>"; };
+		E0AF550DD26D63E92D447628 /* Sharpness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sharpness.swift; sourceTree = "<group>"; };
 		E128E399673432D9595F4D32 /* SimilarityEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityEngine.swift; sourceTree = "<group>"; };
 		E5D72F424621A0BBE7ABC95C /* Nixel.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Nixel.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F243E9D96E960E8881385B7F /* IntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceService.swift; sourceTree = "<group>"; };
@@ -264,6 +266,7 @@
 			children = (
 				52F92E166CD956FF5E38FD12 /* Descriptor.swift */,
 				8589641A6989C06E8BF4D10E /* FeaturePrintStore.swift */,
+				E0AF550DD26D63E92D447628 /* Sharpness.swift */,
 				E128E399673432D9595F4D32 /* SimilarityEngine.swift */,
 			);
 			path = Similarity;
@@ -412,6 +415,7 @@
 				4B5BF0555B175BDEAB836717 /* ScanCoordinator.swift in Sources */,
 				5F3298D6512A13B7035A3D04 /* ScreenshotTriage.swift in Sources */,
 				A230E8587FD2039D9FAAC3B1 /* SelectionBar.swift in Sources */,
+				FA129D66DFA0677B8ECCB6AC /* Sharpness.swift in Sources */,
 				0877249E43072E9CD732CB3B /* SimilarPhotosView.swift in Sources */,
 				9811C09D83DDCF8E0B77617F /* SimilarityEngine.swift in Sources */,
 				17161AC0D60299154A3927F1 /* Theme.swift in Sources */,

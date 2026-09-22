@@ -14,6 +14,7 @@ final class FeaturePrintStore {
     struct Record {
         var modified: Double
         var kind: DescriptorKind
+        var sharpness: Double
         var vector: [Float]
     }
 
@@ -22,7 +23,7 @@ final class FeaturePrintStore {
     private let url: URL
 
     private static let magic: UInt32 = 0x52434650      // "RCFP"
-    private static let version: UInt32 = 2
+    private static let version: UInt32 = 4
 
     init(filename: String = "featureprints.bin") {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -39,9 +40,10 @@ final class FeaturePrintStore {
         return record
     }
 
-    func store(_ descriptor: Descriptor?, for id: String, modified: Date?) {
+    func store(_ descriptor: Descriptor?, sharpness: Double, for id: String, modified: Date?) {
         records[id] = Record(modified: modified?.timeIntervalSince1970 ?? 0,
                              kind: descriptor?.kind ?? .vision,
+                             sharpness: sharpness,
                              vector: descriptor?.vector ?? [])
         dirty = true
     }
@@ -83,6 +85,7 @@ final class FeaturePrintStore {
 
             guard let modified = read(Double.self),
                   let rawKind = read(UInt16.self),
+                  let sharpness = read(Double.self),
                   let dimensions = read(UInt16.self) else { break }
             let kind = DescriptorKind(rawValue: rawKind) ?? .vision
 
@@ -95,7 +98,7 @@ final class FeaturePrintStore {
             }
             cursor += byteCount
 
-            loaded[id] = Record(modified: modified, kind: kind, vector: vector)
+            loaded[id] = Record(modified: modified, kind: kind, sharpness: sharpness, vector: vector)
         }
 
         records = loaded
@@ -114,6 +117,7 @@ final class FeaturePrintStore {
             data.append(contentsOf: idBytes)
             withUnsafeBytes(of: record.modified) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: record.kind.rawValue) { data.append(contentsOf: $0) }
+            withUnsafeBytes(of: record.sharpness) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: UInt16(record.vector.count)) { data.append(contentsOf: $0) }
             record.vector.withUnsafeBufferPointer { buffer in
                 data.append(UnsafeRawBufferPointer(buffer).bindMemory(to: UInt8.self))

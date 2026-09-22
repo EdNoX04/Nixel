@@ -230,8 +230,32 @@ final class ScanCoordinator {
             itemCount: groups.reduce(0) { $0 + $1.others.count },
             reclaimableBytes: groups.reduce(0) { $0 + $1.reclaimableBytes })
 
-        // Blurry detection is wired up in a later pass; report an honest empty result
-        // rather than leaving a spinner running forever.
-        summaries[.blurryPhotos] = CategorySummary(state: .ready, itemCount: 0, reclaimableBytes: 0)
+        // --- 3. Blurry photos, judged relative to this library's own sharpness. ---
+        let scores = await engine.sharpnessScores(for: photoAssets)
+        let scored = photoAssets.map { asset -> PhotoAsset in
+            var item = asset
+            item.sharpness = scores[asset.id]
+            return item
+        }
+
+        // Photos already queued for removal as duplicates should not also be counted here,
+        // or the dashboard would promise the same bytes back twice.
+        let claimed = Set(groups.flatMap { $0.others.map(\.id) })
+        let detected = BlurDetector.detect(in: scored.filter { !claimed.contains($0.id) })
+
+        let blurrySized = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
+            detected.map { asset in
+                var item = asset
+                item.bytes = AssetSize.bytes(for: asset.phAsset)
+                return item
+            }
+        }.value
+
+        guard !Task.isCancelled else { return }
+        blurryPhotos = blurrySized
+        summaries[.blurryPhotos] = CategorySummary(
+            state: .ready,
+            itemCount: blurrySized.count,
+            reclaimableBytes: blurrySized.reduce(0) { $0 + $1.bytes })
     }
 }

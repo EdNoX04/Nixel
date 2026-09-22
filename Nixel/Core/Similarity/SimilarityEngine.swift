@@ -61,7 +61,7 @@ actor SimilarityEngine {
         let concurrency = min(6, max(2, ProcessInfo.processInfo.activeProcessorCount - 1))
         var done = 0
 
-        await withTaskGroup(of: (String, Date?, Descriptor?).self) { group in
+        await withTaskGroup(of: (String, Date?, Descriptor?, Double).self) { group in
             var next = 0
 
             func schedule() {
@@ -71,15 +71,15 @@ actor SimilarityEngine {
                 group.addTask {
                     // An unreadable asset (iCloud-only original, corrupt file) yields nil,
                     // which we still cache so it is not retried on every scan.
-                    let descriptor = await Self.descriptor(for: asset.phAsset)
-                    return (asset.id, asset.phAsset.modificationDate, descriptor)
+                    let (descriptor, sharpness) = await Self.analyse(asset.phAsset)
+                    return (asset.id, asset.phAsset.modificationDate, descriptor, sharpness)
                 }
             }
 
             for _ in 0..<concurrency { schedule() }
 
-            while let (id, modified, descriptor) = await group.next() {
-                store.store(descriptor, for: id, modified: modified)
+            while let (id, modified, descriptor, sharpness) = await group.next() {
+                store.store(descriptor, sharpness: sharpness, for: id, modified: modified)
                 done += 1
                 if done % 20 == 0 || done == missing.count {
                     progress(Double(done) / Double(missing.count))
@@ -91,6 +91,17 @@ actor SimilarityEngine {
 
         store.prune(keeping: Set(assets.map(\.id)))
         store.save()
+    }
+
+    /// Cached sharpness per asset id, for blur detection and best-of-group ranking.
+    func sharpnessScores(for assets: [PhotoAsset]) -> [String: Double] {
+        var scores: [String: Double] = [:]
+        for asset in assets {
+            guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate)
+            else { continue }
+            scores[asset.id] = record.sharpness
+        }
+        return scores
     }
 
     /// Groups prepared assets into sets of near-identical photos.
@@ -108,7 +119,9 @@ actor SimilarityEngine {
                   record.vector.count == record.kind.dimensions else { continue }
             if kind == nil { kind = record.kind }
             guard record.kind == kind else { continue }
-            usable.append(asset)
+            var enriched = asset
+            enriched.sharpness = record.sharpness
+            usable.append(enriched)
             vectors.append(record.vector)
         }
 
@@ -236,9 +249,13 @@ actor SimilarityEngine {
         }
     }
 
-    nonisolated static func descriptor(for asset: PHAsset) async -> Descriptor? {
-        guard let cgImage = await analysisImage(for: asset) else { return nil }
-        return DescriptorEngine.compute(for: cgImage)
+    /// One decode, two measurements. Loading the thumbnail is the expensive part, so
+    /// sharpness is computed from the same image rather than fetching it twice.
+    nonisolated static func analyse(_ asset: PHAsset) async -> (Descriptor?, Double) {
+        guard let cgImage = await analysisImage(for: asset) else { return (nil, 0) }
+        let descriptor = DescriptorEngine.compute(for: cgImage)
+        let sharpness = Sharpness.measure(cgImage) ?? 0
+        return (descriptor, sharpness)
     }
 }
 
