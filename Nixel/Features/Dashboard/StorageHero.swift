@@ -18,6 +18,8 @@ struct StorageHero: View {
     var reclaimable: Int64
     var isScanning: Bool
     var progress: Double        // 0...1 while scanning
+    /// False when this tab is not the one on screen.
+    var isActive: Bool = true
 
     private var usedFraction: Double { snapshot.usedFraction }
     private var reclaimFraction: Double {
@@ -26,7 +28,7 @@ struct StorageHero: View {
     }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: !isActive)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
 
             ZStack {
@@ -50,15 +52,20 @@ struct StorageHero: View {
         let depth = isScanning ? 0.16 : 0.07
         let pulse = 1 + depth * sin(t * speed)
 
+        // A radial gradient is already soft, so the blur it used to carry was pure cost —
+        // an offscreen pass every frame to smooth something that was never hard-edged.
         return Circle()
             .fill(
                 RadialGradient(
-                    colors: [Theme.indigo.opacity(auraStrength), .clear],
-                    center: .center, startRadius: 40, endRadius: 190
+                    colors: [
+                        Theme.indigo.opacity(auraStrength),
+                        Theme.indigo.opacity(auraStrength * 0.35),
+                        .clear
+                    ],
+                    center: .center, startRadius: 30, endRadius: 200
                 )
             )
             .scaleEffect(pulse)
-            .blur(radius: 12)
     }
 
     /// Light surfaces swallow a faint glow, so it needs more presence there.

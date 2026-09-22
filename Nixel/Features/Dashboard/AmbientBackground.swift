@@ -4,41 +4,47 @@ import SwiftUI
 ///
 /// On iOS 18 and later this is a `MeshGradient` whose interior control points drift on
 /// sine waves of mutually-prime periods, so the shape folds through itself continuously
-/// and never visibly loops. Older systems get blurred radial fields, which reads as the
-/// same idea with less fidelity.
+/// and never visibly loops. Older systems get blurred radial fields.
 ///
-/// Kept faint on purpose. It sits behind real content — a storage figure people are trying
-/// to read — so it is tuned to be noticed only once you stop looking at anything else.
-/// While a scan runs it lifts and quickens, which signals work without adding a spinner.
+/// ## Making it cheap
+///
+/// Three things, because an ambient layer that costs frames is worse than no ambient layer:
+///
+///  * **No blur on the mesh.** A blur over a view whose contents change every frame forces
+///    an offscreen render pass 60 times a second. The blur was only there to hide the
+///    seams of a 3x3 control grid; a 4x4 grid with `smoothsColors` is smooth by
+///    construction, so the filter goes away and the softness stays.
+///  * **30fps, not 60.** The fastest control point moves about a tenth of a radian per
+///    second. Half the frames are visually identical and cost the same to draw.
+///  * **Paused when it isn't visible.** A `TabView` keeps every tab's view alive, so
+///    without this the gradient would keep animating while the user is three tabs away.
 struct AmbientBackground: View {
     var isScanning: Bool
+    /// False when this tab is not the one on screen.
+    var isActive: Bool = true
 
     @Environment(\.colorScheme) private var colorScheme
 
     private var tints: [Color] { [Theme.indigo, Theme.teal, Theme.success] }
 
-    /// Light mode needs a good deal more of everything.
-    ///
-    /// The first version was tuned against a near-black background and all but vanished on
-    /// white: the palette's light renditions are darker and less luminous, and the drifting
-    /// squares were filled with white, which is simply invisible on a light surface.
+    /// Light mode needs a good deal more of everything: the palette's light renditions are
+    /// darker and less luminous, and an effect tuned against near-black all but vanishes.
     private var isLight: Bool { colorScheme == .light }
-    private var meshOpacity: Double { isLight ? 0.72 : 0.42 }
+    private var meshOpacity: Double { isLight ? 0.68 : 0.40 }
     private var pixelColour: Color { isLight ? Theme.indigo : .white }
     private var pixelOpacity: Double { isLight ? 0.26 : 0.13 }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isActive)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             let rate = isScanning ? 2.3 : 1.0
-            let lift = isScanning ? 1.5 : 1.0
+            let lift = isScanning ? 1.4 : 1.0
 
             ZStack {
                 if #available(iOS 18.0, *) {
                     mesh(t: t, rate: rate)
                         .opacity(meshOpacity * lift)
-                        .blur(radius: isLight ? 34 : 26)
-                        .saturation(isLight ? 1.25 : 1.0)
+                        .saturation(isLight ? 1.2 : 1.0)
                 } else {
                     legacyBlobs(t: t, rate: rate, lift: lift)
                 }
@@ -65,30 +71,42 @@ struct AmbientBackground: View {
         }
 
         let a = tints[0], b = tints[1], c = tints[2]
+        let fade = isLight ? 0.88 : 0.62
 
-        return MeshGradient(
-            width: 3,
-            height: 3,
-            points: [
-                SIMD2(0, 0),
-                drift(0.5, 0.0, 0.14, 0.05, 0.10, 0.0),
-                SIMD2(1, 0),
+        // Built in typed pieces: a single sixteen-element literal mixing corner constants
+        // with function calls is more than the type checker will sit through.
+        let topRow: [SIMD2<Float>] = [
+            SIMD2(0, 0), SIMD2(0.34, 0), SIMD2(0.67, 0), SIMD2(1, 0)
+        ]
+        let upperMid: [SIMD2<Float>] = [
+            drift(0.0,  0.33, 0.00, 0.10, 0.13, 1.7),
+            drift(0.34, 0.33, 0.13, 0.11, 0.09, 3.1),
+            drift(0.67, 0.33, 0.12, 0.09, 0.11, 0.6),
+            drift(1.0,  0.33, 0.00, 0.10, 0.12, 4.6)
+        ]
+        let lowerMid: [SIMD2<Float>] = [
+            drift(0.0,  0.67, 0.00, 0.09, 0.10, 2.9),
+            drift(0.34, 0.67, 0.14, 0.10, 0.12, 5.2),
+            drift(0.67, 0.67, 0.11, 0.12, 0.08, 1.1),
+            drift(1.0,  0.67, 0.00, 0.09, 0.13, 3.8)
+        ]
+        let bottomRow: [SIMD2<Float>] = [
+            SIMD2(0, 1), SIMD2(0.34, 1), SIMD2(0.67, 1), SIMD2(1, 1)
+        ]
+        let points: [SIMD2<Float>] = topRow + upperMid + lowerMid + bottomRow
 
-                drift(0.0, 0.5, 0.05, 0.13, 0.13, 1.7),
-                drift(0.5, 0.5, 0.20, 0.17, 0.08, 3.1),
-                drift(1.0, 0.5, 0.05, 0.13, 0.11, 4.6),
+        let swatch: [Color] = [
+            a.opacity(0.50), b.opacity(0.34), c.opacity(0.46), a.opacity(0.38),
+            c.opacity(0.42), a.opacity(0.62), b.opacity(0.44), c.opacity(0.40),
+            b.opacity(0.44), c.opacity(0.38), a.opacity(0.58), b.opacity(0.36),
+            a.opacity(0.40), c.opacity(0.44), b.opacity(0.34), a.opacity(0.48)
+        ]
+        let colours: [Color] = swatch.map { $0.opacity(fade) }
 
-                SIMD2(0, 1),
-                drift(0.5, 1.0, 0.14, 0.05, 0.12, 2.4),
-                SIMD2(1, 1)
-            ],
-            colors: [
-                a.opacity(0.55), b.opacity(0.35), c.opacity(0.50),
-                c.opacity(0.40), a.opacity(0.65), b.opacity(0.45),
-                b.opacity(0.45), c.opacity(0.35), a.opacity(0.55)
-            ].map { $0.opacity(isLight ? 0.9 : 0.65) },
-            smoothsColors: true
-        )
+        // 4x4: one more ring of control points than the eye needs, which is what lets the
+        // blur go away.
+        return MeshGradient(width: 4, height: 4,
+                            points: points, colors: colours, smoothsColors: true)
     }
 
     // MARK: Pre-18 fallback
@@ -106,6 +124,7 @@ struct AmbientBackground: View {
                 let cy = size.height * (0.5 + blob.ay * cos(t * blob.sy * rate + blob.py))
                 let rect = CGRect(x: cx - blob.radius, y: cy - blob.radius,
                                   width: blob.radius * 2, height: blob.radius * 2)
+                // Radial gradients are soft by definition — no filter needed.
                 context.fill(
                     Path(ellipseIn: rect),
                     with: .radialGradient(
@@ -116,7 +135,6 @@ struct AmbientBackground: View {
                 )
             }
         }
-        .blur(radius: 40)
     }
 
     // MARK: Motif
@@ -124,7 +142,7 @@ struct AmbientBackground: View {
     /// The icon's squares, rising slowly through the gradient.
     private func driftingPixels(t: TimeInterval, rate: Double, lift: Double) -> some View {
         Canvas { context, size in
-            for index in 0..<26 {
+            for index in 0..<24 {
                 let seed = Double(index)
                 let speed = (0.012 + (seed.truncatingRemainder(dividingBy: 5)) * 0.005) * rate
                 let progress = (t * speed + seed * 0.137).truncatingRemainder(dividingBy: 1)

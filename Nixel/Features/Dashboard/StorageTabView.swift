@@ -9,12 +9,17 @@ import Photos
 struct StorageTabView: View {
     @Environment(PermissionCenter.self) private var permissions
     @Environment(ScanCoordinator.self) private var scanner
+    @Environment(Navigator.self) private var navigator
     @State private var showAppearance = false
+
+    /// A TabView keeps every tab alive, so the animations have to be told when they are
+    /// off screen or they keep burning frames three tabs away.
+    private var isVisible: Bool { navigator.selectedTab == .storage }
 
     var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
-            AmbientBackground(isScanning: scanner.isScanning)
+            AmbientBackground(isScanning: scanner.isScanning, isActive: isVisible)
 
             VStack(spacing: Theme.Space.xl) {
                 // What the agent last turned up sits above the ring: it is the one thing
@@ -32,7 +37,8 @@ struct StorageTabView: View {
                     snapshot: scanner.storage,
                     reclaimable: scanner.totalReclaimable,
                     isScanning: scanner.isScanning,
-                    progress: scanner.overallProgress
+                    progress: scanner.overallProgress,
+                    isActive: isVisible
                 )
                 .frame(width: 236, height: 236)
 
