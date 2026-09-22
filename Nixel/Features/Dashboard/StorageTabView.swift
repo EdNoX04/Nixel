@@ -11,6 +11,7 @@ struct StorageTabView: View {
     @Environment(ScanCoordinator.self) private var scanner
     @Environment(Navigator.self) private var navigator
     @State private var showAppearance = false
+    @State private var showPrimer = false
 
     /// A TabView keeps every tab alive, so the animations have to be told when they are
     /// off screen or they keep burning frames three tabs away.
@@ -83,13 +84,24 @@ struct StorageTabView: View {
         .sheet(isPresented: $showAppearance) { AppearanceView() }
         .navigationDestination(for: CleanupCategory.self) { CategoryDetailView(category: $0) }
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: scanner.isScanning)
+        .sheet(isPresented: $showPrimer) {
+            PermissionPrimer(
+                onContinue: {
+                    showPrimer = false
+                    Task { await startScan(explained: true) }
+                },
+                onCancel: { showPrimer = false }
+            )
+        }
         .task {
-            if permissions.photos == .notDetermined { await permissions.requestPhotos() }
-            if permissions.photos.canScan, scanner.lastScanDate == nil {
+            // Launch does nothing on its own: no permission prompt, no scan. The only
+            // exception is someone who has already asked for a scan before, whose results
+            // are simply refreshed. Contacts are only ever read from the Contacts tab.
+            permissions.refresh()
+            if scanner.hasConsentedToScan,
+               permissions.photos.canScan,
+               scanner.lastScanDate == nil {
                 scanner.scanPhotos(access: permissions.photos)
-            }
-            if permissions.contacts.canScan, scanner.contactGroups.isEmpty {
-                scanner.scanContacts(access: permissions.contacts)
             }
         }
     }
@@ -100,17 +112,15 @@ struct StorageTabView: View {
     private var scanButton: some View {
         if !permissions.photos.canScan {
             Button {
-                Task {
-                    if permissions.photos == .notDetermined {
-                        let granted = await permissions.requestPhotos()
-                        if granted.canScan { scanner.scanPhotos(access: granted) }
-                    } else {
-                        permissions.openSettings()
-                    }
+                if permissions.photos == .notDetermined {
+                    showPrimer = true
+                } else {
+                    permissions.openSettings()
                 }
             } label: {
-                Label(permissions.photos == .notDetermined ? "Allow Photo Access" : "Open Settings",
-                      systemImage: "lock.open")
+                Label(permissions.photos == .notDetermined ? "Scan My iPhone" : "Open Settings",
+                      systemImage: permissions.photos == .notDetermined
+                          ? "sparkle.magnifyingglass" : "lock.open")
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo))
         } else if scanner.isScanning {
@@ -119,12 +129,30 @@ struct StorageTabView: View {
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo, prominent: false))
         } else {
-            Button { scanner.scanPhotos(access: permissions.photos) } label: {
+            Button { Task { await startScan() } } label: {
                 Label(scanner.lastScanDate == nil ? "Scan My iPhone" : "Scan Again",
                       systemImage: "sparkle.magnifyingglass")
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo))
         }
+    }
+
+    /// The one route into a scan: an explicit tap.
+    ///
+    /// On first use the primer explains what is about to be read; only its Continue button
+    /// passes `explained`, which is what finally triggers the system prompt.
+    private func startScan(explained: Bool = false) async {
+        if permissions.photos == .notDetermined {
+            guard explained else {
+                showPrimer = true
+                return
+            }
+            let access = await permissions.requestPhotos()
+            guard access.canScan else { return }
+        }
+        guard permissions.photos.canScan else { return }
+        scanner.hasConsentedToScan = true
+        scanner.scanPhotos(access: permissions.photos)
     }
 
     private var footer: some View {

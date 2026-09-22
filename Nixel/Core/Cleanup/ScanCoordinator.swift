@@ -30,8 +30,18 @@ final class ScanCoordinator {
     var scannedLimitedLibrary = false
 
     private(set) var isScanning = false
-    private(set) var lastScanDate: Date?
-    private(set) var photosAnalysed = 0
+
+    /// True once the user has asked for a scan themselves.
+    ///
+    /// Nothing is scanned until this is set. After that, reopening the app refreshes the
+    /// results automatically — the person has already said yes, and asking again on every
+    /// launch would be friction for no gain. Persisted, so it survives relaunches.
+    var hasConsentedToScan: Bool {
+        get { UserDefaults.standard.bool(forKey: "scan.consented") }
+        set { UserDefaults.standard.set(newValue, forKey: "scan.consented") }
+    }
+    var lastScanDate: Date?
+    var photosAnalysed = 0
 
     private let engine = SimilarityEngine()
     private let contactScanner = ContactScanner()
@@ -181,6 +191,24 @@ final class ScanCoordinator {
             state: .ready,
             itemCount: contactGroups.reduce(0) { $0 + $1.others.count },
             reclaimableBytes: 0)
+    }
+
+    /// Clears every result held in memory. Used by the debug reset, and harmless to call.
+    func resetResults() {
+        scanTask?.cancel()
+        scanTask = nil
+        isScanning = false
+        lastScanDate = nil
+        photosAnalysed = 0
+        similarGroups = []
+        screenshots = []
+        largeVideos = []
+        blurryPhotos = []
+        contactGroups = []
+        screenshotVerdicts = [:]
+        groupLabels = [:]
+        peopleCount = 0
+        for category in CleanupCategory.allCases { summaries[category] = CategorySummary() }
     }
 
     func refreshStorage() {

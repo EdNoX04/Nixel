@@ -141,14 +141,26 @@ struct AgentSettingsView: View {
                 }
                 .disabled(DemoLibrary.importedCount == 0 || agent.demoBusy)
 
-                Button("Seed test contacts") {
-                    try? DebugContactSeed.seed()
-                    agent.seedMessage = "Seeded \(DebugContactSeed.fixtures.count) contacts"
+                Button("Reset Nixel data", role: .destructive) {
+                    resetAllData()
                 }
-                Button("Wipe all contacts", role: .destructive) {
-                    try? DebugContactSeed.wipe()
-                    agent.seedMessage = "Contacts cleared"
+
+                Button {
+                    Task { await seedContacts() }
+                } label: {
+                    HStack {
+                        Text("Add demo contacts")
+                        Spacer()
+                        Text("\(DebugContactSeed.fixtures.count) people").foregroundStyle(.secondary)
+                    }
                 }
+
+                Button("Remove demo contacts", role: .destructive) {
+                    let removed = (try? DebugContactSeed.removeSeeded()) ?? 0
+                    agent.seedMessage = "Removed \(removed) demo contacts. Nothing else was touched."
+                    scanner.scanContacts(access: permissions.contacts)
+                }
+                .disabled(DebugContactSeed.seededCount == 0)
             } header: {
                 Text("Developer")
             } footer: {
@@ -163,6 +175,14 @@ struct AgentSettingsView: View {
 
     #if DEBUG
     private func importDemo() async {
+        // The demo library exists so a device can be recorded without its owner's photos
+        // on screen. Under full access the scan that follows would read the whole library,
+        // defeating the point — so refuse, and say what to change.
+        permissions.refresh()
+        guard permissions.photos != .full else {
+            agent.seedMessage = "Nixel has full access to your photos. For a private demo, set Settings → Privacy & Security → Photos → Nixel to Limited, with nothing selected, then import."
+            return
+        }
         agent.demoBusy = true
         defer { agent.demoBusy = false }
         do {
@@ -171,9 +191,50 @@ struct AgentSettingsView: View {
             }
             agent.seedMessage = "Imported \(count) items. Rescanning…"
             permissions.refresh()
+            scanner.hasConsentedToScan = true
             scanner.scanPhotos(access: permissions.photos)
         } catch {
             agent.seedMessage = "Import failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Deletes everything Nixel has derived from a library — descriptors, screenshot
+    /// verdicts, AI group labels, the agent's finding — and forgets consent, so the next
+    /// launch behaves like a first launch. The demo manifest is kept, so imported demo items
+    /// can still be removed afterwards.
+    private func resetAllData() {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory,
+                                               in: .userDomainMask)[0]
+        for name in ["featureprints.bin", "screenshot-verdicts.json", "group-insights.json"] {
+            try? FileManager.default.removeItem(at: support.appendingPathComponent(name))
+        }
+        NixelAgent.shared.clear()
+        scanner.hasConsentedToScan = false
+        scanner.resetResults()
+        agent.seedMessage = "All scan data cleared. Nothing derived from your library remains."
+    }
+
+    /// Same rule as the photo import: under full access the contacts scan would read the
+    /// whole address book, so refuse and explain.
+    private func seedContacts() async {
+        permissions.refresh()
+        if permissions.contacts == .notDetermined {
+            _ = await permissions.requestContacts()
+        }
+        guard permissions.contacts != .full else {
+            agent.seedMessage = "Nixel can read all your contacts. For a private demo, set Settings → Privacy & Security → Contacts → Nixel to Limited, with nobody selected, then add the demo contacts."
+            return
+        }
+        guard permissions.contacts.canScan else {
+            agent.seedMessage = "Contacts access is off. Allow limited access first."
+            return
+        }
+        do {
+            let count = try DebugContactSeed.seed()
+            agent.seedMessage = "Added \(count) demo contacts. Rescanning…"
+            scanner.scanContacts(access: permissions.contacts)
+        } catch {
+            agent.seedMessage = "Couldn't add contacts: \(error.localizedDescription)"
         }
     }
 

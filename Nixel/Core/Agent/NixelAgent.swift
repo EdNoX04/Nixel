@@ -64,6 +64,14 @@ final class NixelAgent {
         }
     }
 
+    /// Forgets the last run entirely.
+    func clear() {
+        lastRun = nil
+        lastFinding = nil
+        defaults.removeObject(forKey: lastRunKey)
+        defaults.removeObject(forKey: lastFindingKey)
+    }
+
     private func persist(_ finding: Finding?, at date: Date) {
         lastRun = date
         lastFinding = finding
