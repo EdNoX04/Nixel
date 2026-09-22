@@ -59,7 +59,12 @@ actor SimilarityEngine {
             return
         }
 
-        let concurrency = min(6, max(2, ProcessInfo.processInfo.activeProcessorCount - 1))
+        // Warm the models once, serially, instead of cold-loading them in parallel.
+        await VisionWork.warmUp()
+
+        // Image loading is I/O and suspends properly, so it can run wider than the Vision
+        // queue behind it; the queue caps the neural work at two regardless.
+        let concurrency = 6
         var done = 0
 
         await withTaskGroup(of: (String, Date?, Descriptor?, Double, Int).self) { group in
@@ -343,10 +348,13 @@ actor SimilarityEngine {
     /// sharpness is computed from the same image rather than fetching it twice.
     nonisolated static func analyse(_ asset: PHAsset) async -> (Descriptor?, Double, Int) {
         guard let cgImage = await analysisImage(for: asset) else { return (nil, 0, 0) }
-        let descriptor = DescriptorEngine.compute(for: cgImage)
-        let sharpness = Sharpness.measure(cgImage) ?? 0
-        let people = PeopleDetector.count(in: cgImage)
-        return (descriptor, sharpness, people)
+        // Suspends while Vision runs on its own queue; never blocks a cooperative thread.
+        return await VisionWork.run {
+            let descriptor = DescriptorEngine.compute(for: cgImage)
+            let sharpness = Sharpness.measure(cgImage) ?? 0
+            let people = PeopleDetector.count(in: cgImage)
+            return (descriptor, sharpness, people)
+        }
     }
 }
 

@@ -90,19 +90,19 @@ actor ScreenshotTriage {
             return nil
         }
 
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = false
-
-        do {
-            try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
-        } catch {
-            return nil
+        // On the Vision queue like every other neural request, never a cooperative thread.
+        return await VisionWork.run {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = false
+            do {
+                try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+            } catch {
+                return nil
+            }
+            let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+            let joined = lines.joined(separator: "\n")
+            return joined.isEmpty ? nil : joined
         }
-
-        guard let observations = request.results else { return nil }
-        let lines = observations.compactMap { $0.topCandidates(1).first?.string }
-        let joined = lines.joined(separator: "\n")
-        return joined.isEmpty ? nil : joined
     }
 }

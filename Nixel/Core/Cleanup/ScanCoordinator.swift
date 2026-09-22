@@ -260,6 +260,9 @@ final class ScanCoordinator {
 
     private var resumeAfterBackground = false
 
+    /// Incremented for every scan started; a scan only writes results while it is current.
+    private var scanGeneration = 0
+
     /// The phone is locking or the app is leaving the screen.
     ///
     /// iOS suspends the process shortly after this, and a scan left running across that
@@ -308,6 +311,8 @@ final class ScanCoordinator {
         }
 
         scanTask?.cancel()
+        scanGeneration += 1
+        let generation = scanGeneration
         isScanning = true
         scannedLimitedLibrary = (access == .limited)
         for category in photoCategories { summaries[category]?.state = .scanning(0) }
@@ -326,6 +331,15 @@ final class ScanCoordinator {
                 try? await Task.sleep(nanoseconds: UInt64((1.4 - elapsed) * 1_000_000_000))
             }
 
+            // A cancelled or superseded scan must not write anything. It used to: a scan
+            // cancelled when the phone locked finished later, once its Vision calls came
+            // back, and set "not scanning" over the top of the scan that replaced it —
+            // leaving a Stop button beside a finished headline.
+            guard !Task.isCancelled, generation == self.scanGeneration else {
+                trace("scan: superseded, discarding results")
+                return
+            }
+
             trace("scan: finished in \(String(format: "%.1f", elapsed))s")
             self.isScanning = false
             self.lastScanDate = Date()
@@ -336,6 +350,25 @@ final class ScanCoordinator {
 
     private var photoCategories: [CleanupCategory] {
         [.similarPhotos, .screenshots, .largeVideos, .blurryPhotos]
+    }
+
+    /// Classifies screenshots once the heavy pass has finished. Fire-and-forget: the grid is
+    /// already on screen, and categories fill in as they are decided.
+    private func startTriage(_ assets: [PhotoAsset]) {
+        guard !assets.isEmpty else { return }
+        Task { [weak self, triage] in
+            let ready = await IntelligenceService.shared.currentAvailability().isAvailable
+            trace("triage: intelligence available=\(ready)")
+            guard ready else { return }
+            await MainActor.run { self?.isTriaging = true }
+            await triage.triage(assets) { _ in }
+            let verdicts = await triage.allVerdicts()
+            await MainActor.run {
+                self?.screenshotVerdicts = verdicts
+                self?.isTriaging = false
+                trace("triage: done, \(verdicts.count) verdicts")
+            }
+        }
     }
 
     /// Entry point for the background agent: runs the same scan, then waits for it.
@@ -369,22 +402,11 @@ final class ScanCoordinator {
             itemCount: sized.count,
             reclaimableBytes: sized.reduce(0) { $0 + $1.bytes })
 
-        // On-device triage of screenshots. Runs after the list is already on screen so
-        // the user never waits on the model to see their screenshots.
-        trace("intelligence: checking availability")
-        let intelligenceReady = await IntelligenceService.shared.currentAvailability().isAvailable
-        trace("intelligence: available=\(intelligenceReady)")
-        if intelligenceReady, !sized.isEmpty {
-            isTriaging = true
-            Task { [weak self, triage] in
-                await triage.triage(sized) { _ in }
-                let verdicts = await triage.allVerdicts()
-                await MainActor.run {
-                    self?.screenshotVerdicts = verdicts
-                    self?.isTriaging = false
-                }
-            }
-        }
+        // Screenshot triage (OCR and the language model) is deliberately NOT started here.
+        // It used to launch alongside the similarity pass, so three neural workloads cold-
+        // started on the Neural Engine at the same instant. It now runs once that pass is
+        // done — see the end of this function.
+        let screenshotsToTriage = sized
 
         trace("videos: fetching + sizing")
         let videoAssets = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
@@ -487,5 +509,7 @@ final class ScanCoordinator {
             state: .ready,
             itemCount: blurrySized.count,
             reclaimableBytes: blurrySized.reduce(0) { $0 + $1.bytes })
+
+        startTriage(screenshotsToTriage)
     }
 }

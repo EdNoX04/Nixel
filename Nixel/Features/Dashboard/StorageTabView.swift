@@ -97,47 +97,58 @@ struct StorageTabView: View {
 
     // MARK: Headline
 
-    /// One fixed slot, five states. Swapped with a crossfade, never inserted.
-    @ViewBuilder
+    private enum HeadlineState { case scanning, empty, reclaimable, clean, intro }
+
+    private var headlineState: HeadlineState {
+        if scanner.isScanning { return .scanning }
+        if scanner.lastScanDate != nil && scanner.photosAnalysed == 0 { return .empty }
+        if scanner.totalReclaimable > 0 { return .reclaimable }
+        if scanner.lastScanDate != nil { return .clean }
+        return .intro
+    }
+
+    /// One fixed slot, five states — all present, cross-faded by opacity.
+    ///
+    /// Views are never inserted or removed here, so there is no transition that can strand
+    /// an old state on screen beside a new one.
     private var headline: some View {
-        ZStack {
-            if scanner.isScanning {
-                VStack(spacing: 2) {
-                    Text("Looking through your library")
-                        .font(.headline)
-                    Text("Everything stays on this iPhone")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                .transition(.opacity)
-            } else if scanner.lastScanDate != nil && scanner.photosAnalysed == 0 {
-                emptyState.transition(.opacity)
-            } else if scanner.totalReclaimable > 0 {
-                VStack(spacing: 2) {
-                    Text("\(Bytes.string(scanner.totalReclaimable)) can be freed")
-                        .font(.headline)
-                        .foregroundStyle(Theme.success)
-                        .contentTransition(.numericText())
-                    Text("Reviewed by you before anything is removed")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                .transition(.opacity)
-            } else if scanner.lastScanDate != nil {
-                VStack(spacing: 2) {
-                    Text("Nothing to clean right now").font(.headline)
-                    Text("\(scanner.photosAnalysed) photos checked")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                .transition(.opacity)
-            } else {
-                Text("See what's taking up space — nothing is removed without you")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .transition(.opacity)
+        let state = headlineState
+        return ZStack {
+            VStack(spacing: 2) {
+                Text("Looking through your library").font(.headline)
+                Text("Everything stays on this iPhone")
+                    .font(.caption).foregroundStyle(.secondary)
             }
+            .opacity(state == .scanning ? 1 : 0)
+
+            emptyState
+                .opacity(state == .empty ? 1 : 0)
+                .allowsHitTesting(state == .empty)
+
+            VStack(spacing: 2) {
+                Text("\(Bytes.string(scanner.totalReclaimable)) can be freed")
+                    .font(.headline)
+                    .foregroundStyle(Theme.success)
+                    .contentTransition(.numericText())
+                Text("Reviewed by you before anything is removed")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .opacity(state == .reclaimable ? 1 : 0)
+
+            VStack(spacing: 2) {
+                Text("Nothing to clean right now").font(.headline)
+                Text("\(scanner.photosAnalysed) photos checked")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .opacity(state == .clean ? 1 : 0)
+
+            Text("See what's taking up space — nothing is removed without you")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .opacity(state == .intro ? 1 : 0)
         }
-        .animation(.easeInOut(duration: 0.3), value: scanner.isScanning)
-        .animation(.easeInOut(duration: 0.3), value: scanner.lastScanDate)
+        .animation(.easeInOut(duration: 0.3), value: state)
     }
 
     /// A scan that could see nothing. Says why instead of silently showing nothing.

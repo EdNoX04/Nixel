@@ -118,7 +118,13 @@ enum Sharpness {
 enum BlurDetector {
 
     /// Below this, a photo is confidently out of focus.
-    static let threshold = 0.60
+    ///
+    /// Calibrated on a real iPhone, not the Simulator. The same fifteen blurred photos scored
+    /// 0.48-0.54 in the Simulator but 0.53-0.75 on device — the phone's thumbnail pipeline
+    /// adds a little high-frequency energy — so the Simulator-era 0.60 caught only two. On
+    /// device the sharp photos never scored below 0.788, so 0.76 catches all fifteen with no
+    /// false positives, and still sits above every Simulator blur score too.
+    static let threshold = 0.76
 
     static func detect(in assets: [PhotoAsset]) -> [PhotoAsset] {
         assets

@@ -145,19 +145,15 @@ struct StorageHero: View {
 
     // MARK: Numbers
 
+    /// Both readouts are always present and cross-fade by opacity.
+    ///
+    /// This used to be an if/else with a transition. Inside a `TimelineView` that redraws
+    /// every frame, the outgoing view could be stranded mid-fade, leaving "Scanning 4%"
+    /// drawn over a ghost of the free-space figure. Nothing is inserted or removed now, so
+    /// there is no transition to strand.
     private var readout: some View {
-        VStack(spacing: 2) {
-            if isScanning {
-                Text("Scanning")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Theme.indigo)
-                Text("\(Int(progress * 100))%")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText(value: progress))
-                    .monospacedDigit()
-                    // Counts up rather than jumping between the values the scan reports.
-                    .animation(.easeOut(duration: 0.45), value: Int(progress * 100))
-            } else {
+        ZStack {
+            VStack(spacing: 2) {
                 Text(Bytes.string(snapshot.available))
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .contentTransition(.numericText())
@@ -169,7 +165,20 @@ struct StorageHero: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 1)
             }
+            .opacity(isScanning ? 0 : 1)
+
+            VStack(spacing: 2) {
+                Text("Scanning")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.indigo)
+                Text("\(Int(progress * 100))%")
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .contentTransition(.numericText(value: progress))
+                    .monospacedDigit()
+                    .animation(.easeOut(duration: 0.45), value: Int(progress * 100))
+            }
+            .opacity(isScanning ? 1 : 0)
         }
-        .animation(.snappy, value: isScanning)
+        .animation(.easeInOut(duration: 0.3), value: isScanning)
     }
 }

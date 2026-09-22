@@ -35,7 +35,11 @@ enum DescriptorKind: UInt16 {
 
     var similarThreshold: Float {
         switch self {
-        case .vision: return 0.26
+        // Re-measured on a real iPhone 15 Pro Max: same-group pairs never exceed 0.273 and
+        // unrelated photos never come closer than 0.347. 0.28 misses none and merges none
+        // there, and stays below the nearest unrelated pair seen on the larger macOS set
+        // (0.299) — the Simulator-era 0.26 dropped three genuine recrops.
+        case .vision: return 0.28
         // Measured across a 266-photo library: the nearest *unrelated* pair sits at 0.237,
         // so anything at or above that manufactures duplicates. 0.22 buys a margin under
         // it. This misses some genuine matches, which is the right way to be wrong.

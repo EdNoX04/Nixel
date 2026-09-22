@@ -64,6 +64,7 @@ final class MainThreadWatchdog: @unchecked Sendable {
     private let queue = DispatchQueue(label: "nixel.watchdog")
     private var timer: DispatchSourceTimer?
     private var lastAck = Date()
+    private var lastTick = Date()
     private var reportedStall = false
     private let lock = NSLock()
 
@@ -85,7 +86,17 @@ final class MainThreadWatchdog: @unchecked Sendable {
 
     private func tick() {
         lock.lock()
-        let silence = Date().timeIntervalSince(lastAck)
+        let now = Date()
+        // If this timer itself went quiet, the whole process was suspended — the phone
+        // locked, or the app left the screen. That silence is not a hang. Resetting on the
+        // foreground notification alone was not enough: the first tick after waking could
+        // run before it, and every unlock was reported as a main-thread stall.
+        if now.timeIntervalSince(lastTick) > 2 {
+            lastAck = now
+            reportedStall = false
+        }
+        lastTick = now
+        let silence = now.timeIntervalSince(lastAck)
         let alreadyReported = reportedStall
         lock.unlock()
 
