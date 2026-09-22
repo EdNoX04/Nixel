@@ -14,8 +14,10 @@ import SwiftUI
 ///    an offscreen render pass 60 times a second. The blur was only there to hide the
 ///    seams of a 3x3 control grid; a 4x4 grid with `smoothsColors` is smooth by
 ///    construction, so the filter goes away and the softness stays.
-///  * **30fps, not 60.** The fastest control point moves about a tenth of a radian per
-///    second. Half the frames are visually identical and cost the same to draw.
+///  * **Display rate, not a fixed cap.** An earlier 30fps cap looked fine on a 60Hz
+///    simulator and juddered on a 120Hz ProMotion phone, where each frame was held for four
+///    refreshes and the drifting squares visibly stepped. With the blur gone the per-frame
+///    cost is small enough to run at whatever the display asks for.
 ///  * **Paused when it isn't visible.** A `TabView` keeps every tab's view alive, so
 ///    without this the gradient would keep animating while the user is three tabs away.
 struct AmbientBackground: View {
@@ -35,7 +37,7 @@ struct AmbientBackground: View {
     private var pixelOpacity: Double { isLight ? 0.26 : 0.13 }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isActive)) { timeline in
+        TimelineView(.animation(paused: !isActive)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             let rate = isScanning ? 2.3 : 1.0
             let lift = isScanning ? 1.4 : 1.0

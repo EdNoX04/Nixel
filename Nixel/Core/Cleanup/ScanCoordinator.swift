@@ -193,6 +193,35 @@ final class ScanCoordinator {
             reclaimableBytes: 0)
     }
 
+    /// Counts only — what the scan could see, never what it saw.
+    ///
+    /// Written after every scan so behaviour on a real device can be checked from a Mac
+    /// without looking at anyone's photos: how many assets were visible, under which access
+    /// level, which descriptor engine ran, and how long it took.
+    private func writeDiagnostics(access: PhotoAccess, duration: TimeInterval) {
+        let status: [String: Any] = [
+            "access": "\(access)",
+            "photosVisible": photosAnalysed,
+            "screenshotsVisible": screenshots.count,
+            "videosVisible": largeVideos.count,
+            "similarGroups": similarGroups.count,
+            "similarExtras": similarGroups.reduce(0) { $0 + $1.others.count },
+            "blurry": blurryPhotos.count,
+            "peopleDetectionAvailable": PeopleDetector.isAvailable,
+            "photosWithPeople": peopleCount,
+            "engine": DescriptorEngine.activeKind.map { "\($0)" } ?? "none",
+            "durationSeconds": (duration * 10).rounded() / 10,
+            "date": ISO8601DateFormatter().string(from: Date())
+        ]
+        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("scan-status.json")
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        if let data = try? JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
     /// Clears every result held in memory. Used by the debug reset, and harmless to call.
     func resetResults() {
         scanTask?.cancel()
@@ -238,12 +267,23 @@ final class ScanCoordinator {
         scannedLimitedLibrary = (access == .limited)
         for category in photoCategories { summaries[category]?.state = .scanning(0) }
 
+        let started = Date()
         scanTask = Task { [weak self] in
             guard let self else { return }
             await self.runPhotoScan()
+
+            // A scan with nothing to read finishes in milliseconds, which flicked the UI
+            // into the scanning state and straight back out. Hold it long enough to read as
+            // a deliberate beat rather than a glitch.
+            let elapsed = Date().timeIntervalSince(started)
+            if elapsed < 1.4 {
+                try? await Task.sleep(nanoseconds: UInt64((1.4 - elapsed) * 1_000_000_000))
+            }
+
             self.isScanning = false
             self.lastScanDate = Date()
             self.refreshStorage()
+            self.writeDiagnostics(access: access, duration: elapsed)
         }
     }
 

@@ -34,8 +34,7 @@ struct PixelDriftView: View {
     }()
 
     var body: some View {
-        // 30fps: the fastest square crosses the screen in about ten seconds.
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+        TimelineView(.animation) { timeline in
             Canvas { context, size in
                 let t = timeline.date.timeIntervalSinceReferenceDate
 

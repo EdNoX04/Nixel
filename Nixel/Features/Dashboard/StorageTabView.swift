@@ -22,14 +22,16 @@ struct StorageTabView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
             AmbientBackground(isScanning: scanner.isScanning, isActive: isVisible)
 
+            // Layout is fixed: nothing is inserted or removed as a scan starts and stops.
+            // The first version dropped the headline and the agent card while scanning, so
+            // the centred block re-centred and everything below jumped — twice, in quick
+            // succession, on a fast scan. Content now swaps inside slots of fixed size.
             VStack(spacing: Theme.Space.xl) {
-                // What the agent last turned up sits above the ring: it is the one thing
-                // on this screen the user did not ask for and might otherwise miss.
-                if let finding = NixelAgent.shared.lastFinding, !scanner.isScanning {
+                if let finding = NixelAgent.shared.lastFinding {
                     AgentFindingCard(finding: finding)
                         .padding(.horizontal, Theme.Space.lg)
                         .padding(.top, Theme.Space.sm)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .opacity(scanner.isScanning ? 0.45 : 1)
                 }
 
                 Spacer(minLength: 0)
@@ -43,25 +45,12 @@ struct StorageTabView: View {
                 )
                 .frame(width: 236, height: 236)
 
-                if scanner.totalReclaimable > 0 && !scanner.isScanning {
-                    VStack(spacing: 2) {
-                        Text("\(Bytes.string(scanner.totalReclaimable)) can be freed")
-                            .font(.headline)
-                            .foregroundStyle(Theme.success)
-                        Text("Reviewed by you before anything is removed")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .transition(.opacity)
-                }
+                headline
+                    .frame(height: 58)
+                    .padding(.horizontal, Theme.Space.xl)
 
                 scanButton
                     .padding(.horizontal, Theme.Space.xxl)
-
-                if permissions.photos == .limited {
-                    LimitedAccessNotice()
-                        .padding(.horizontal, Theme.Space.lg)
-                }
 
                 footer
 
@@ -83,7 +72,6 @@ struct StorageTabView: View {
         }
         .sheet(isPresented: $showAppearance) { AppearanceView() }
         .navigationDestination(for: CleanupCategory.self) { CategoryDetailView(category: $0) }
-        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: scanner.isScanning)
         .sheet(isPresented: $showPrimer) {
             PermissionPrimer(
                 onContinue: {
@@ -102,6 +90,73 @@ struct StorageTabView: View {
                permissions.photos.canScan,
                scanner.lastScanDate == nil {
                 scanner.scanPhotos(access: permissions.photos)
+            }
+        }
+    }
+
+    // MARK: Headline
+
+    /// One fixed slot, five states. Swapped with a crossfade, never inserted.
+    @ViewBuilder
+    private var headline: some View {
+        ZStack {
+            if scanner.isScanning {
+                VStack(spacing: 2) {
+                    Text("Looking through your library")
+                        .font(.headline)
+                    Text("Everything stays on this iPhone")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .transition(.opacity)
+            } else if scanner.lastScanDate != nil && scanner.photosAnalysed == 0 {
+                emptyState.transition(.opacity)
+            } else if scanner.totalReclaimable > 0 {
+                VStack(spacing: 2) {
+                    Text("\(Bytes.string(scanner.totalReclaimable)) can be freed")
+                        .font(.headline)
+                        .foregroundStyle(Theme.success)
+                        .contentTransition(.numericText())
+                    Text("Reviewed by you before anything is removed")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .transition(.opacity)
+            } else if scanner.lastScanDate != nil {
+                VStack(spacing: 2) {
+                    Text("Nothing to clean right now").font(.headline)
+                    Text("\(scanner.photosAnalysed) photos checked")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .transition(.opacity)
+            } else {
+                Text("See what's taking up space — nothing is removed without you")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: scanner.isScanning)
+        .animation(.easeInOut(duration: 0.3), value: scanner.lastScanDate)
+    }
+
+    /// A scan that could see nothing. Says why instead of silently showing nothing.
+    @ViewBuilder
+    private var emptyState: some View {
+        VStack(spacing: 4) {
+            Text(permissions.photos == .limited
+                 ? "No photos shared with Nixel yet"
+                 : "No photos to check")
+                .font(.headline)
+            if permissions.photos == .limited {
+                Button("Choose Photos") {
+                    if let controller = UIApplication.topViewController() {
+                        permissions.presentLimitedPicker(from: controller)
+                    }
+                }
+                .font(.caption.weight(.semibold))
+            } else {
+                Text("Your library is empty.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
