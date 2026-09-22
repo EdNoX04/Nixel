@@ -62,7 +62,8 @@ struct MainTabView: View {
                     }
                 }
             }
-            .tabBarMinimizeBehavior(.onScrollDown)
+            // Not `.onScrollDown`: the storage tab does not scroll, so a bar minimised on
+            // another tab stayed collapsed here and read as a stray floating button.
         } else {
             TabView(selection: $navigator.selectedTab) {
                 ForEach(TabItem.allCases) { item in

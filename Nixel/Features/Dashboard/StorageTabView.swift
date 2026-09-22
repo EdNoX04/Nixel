@@ -17,6 +17,15 @@ struct StorageTabView: View {
             AmbientBackground(isScanning: scanner.isScanning)
 
             VStack(spacing: Theme.Space.xl) {
+                // What the agent last turned up sits above the ring: it is the one thing
+                // on this screen the user did not ask for and might otherwise miss.
+                if let finding = NixelAgent.shared.lastFinding, !scanner.isScanning {
+                    AgentFindingCard(finding: finding)
+                        .padding(.horizontal, Theme.Space.lg)
+                        .padding(.top, Theme.Space.sm)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 Spacer(minLength: 0)
 
                 StorageHero(

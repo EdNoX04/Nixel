@@ -1,63 +1,34 @@
 import SwiftUI
 
-/// A full-bleed animated backdrop for the dashboard.
+/// A slow-moving blob gradient behind the storage screen.
 ///
-/// Three soft colour fields drift on slow, mutually-prime cycles so the composition never
-/// visibly repeats, with a scatter of the app's pixel motif floating over them. It picks up
-/// whichever palette is active, so the background is part of the theme rather than a fixed
-/// decoration.
+/// On iOS 18 and later this is a `MeshGradient` whose interior control points drift on
+/// sine waves of mutually-prime periods, so the shape folds through itself continuously
+/// and never visibly loops. Older systems get blurred radial fields, which reads as the
+/// same idea with less fidelity.
 ///
-/// Kept deliberately faint. This sits behind real content — storage figures and photo
-/// thumbnails — and anything more assertive would fight them. While a scan runs it lifts
-/// slightly and speeds up, which reads as the app working without adding a spinner.
+/// Kept faint on purpose. It sits behind real content — a storage figure people are trying
+/// to read — so it is tuned to be noticed only once you stop looking at anything else.
+/// While a scan runs it lifts and quickens, which signals work without adding a spinner.
 struct AmbientBackground: View {
     var isScanning: Bool
 
-    private struct Blob {
-        let hue: Int          // index into the palette trio
-        let radius: CGFloat
-        let ax: Double, ay: Double     // amplitude
-        let sx: Double, sy: Double     // speed
-        let px: Double, py: Double     // phase
-    }
-
-    private static let blobs: [Blob] = [
-        Blob(hue: 0, radius: 300, ax: 0.30, ay: 0.20, sx: 0.043, sy: 0.031, px: 0.0, py: 1.1),
-        Blob(hue: 1, radius: 260, ax: 0.26, ay: 0.24, sx: 0.029, sy: 0.047, px: 2.2, py: 0.4),
-        Blob(hue: 2, radius: 220, ax: 0.22, ay: 0.28, sx: 0.037, sy: 0.023, px: 4.1, py: 3.3)
-    ]
-
-    private var tints: [Color] {
-        [Theme.indigo, Theme.teal, Theme.success]
-    }
+    private var tints: [Color] { [Theme.indigo, Theme.teal, Theme.success] }
 
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
-            let lift = isScanning ? 1.55 : 1.0
-            let rate = isScanning ? 2.6 : 1.0
+            let rate = isScanning ? 2.3 : 1.0
+            let lift = isScanning ? 1.5 : 1.0
 
             ZStack {
-                Canvas { context, size in
-                    for blob in Self.blobs {
-                        let cx = size.width * (0.5 + blob.ax * sin(t * blob.sx * rate + blob.px))
-                        let cy = size.height * (0.5 + blob.ay * cos(t * blob.sy * rate + blob.py))
-                        let rect = CGRect(x: cx - blob.radius, y: cy - blob.radius,
-                                          width: blob.radius * 2, height: blob.radius * 2)
-                        context.fill(
-                            Path(ellipseIn: rect),
-                            with: .radialGradient(
-                                Gradient(colors: [
-                                    tints[blob.hue].opacity(0.22 * lift),
-                                    tints[blob.hue].opacity(0)
-                                ]),
-                                center: CGPoint(x: cx, y: cy),
-                                startRadius: 0, endRadius: blob.radius
-                            )
-                        )
-                    }
+                if #available(iOS 18.0, *) {
+                    mesh(t: t, rate: rate)
+                        .opacity(0.42 * lift)
+                        .blur(radius: 26)
+                } else {
+                    legacyBlobs(t: t, rate: rate, lift: lift)
                 }
-                .blur(radius: 40)
 
                 driftingPixels(t: t, rate: rate, lift: lift)
             }
@@ -66,29 +37,98 @@ struct AmbientBackground: View {
         .allowsHitTesting(false)
     }
 
-    /// The icon's motif, scattered and rising.
+    // MARK: Mesh
+
+    @available(iOS 18.0, *)
+    private func mesh(t: TimeInterval, rate: Double) -> some View {
+        /// Interior points wander; edge points stay put so the gradient never tears away
+        /// from the screen edges.
+        func drift(_ x: Float, _ y: Float, _ ax: Float, _ ay: Float,
+                   _ speed: Double, _ phase: Double) -> SIMD2<Float> {
+            SIMD2(
+                x + ax * Float(sin(t * speed * rate + phase)),
+                y + ay * Float(cos(t * speed * 0.73 * rate + phase * 1.4))
+            )
+        }
+
+        let a = tints[0], b = tints[1], c = tints[2]
+
+        return MeshGradient(
+            width: 3,
+            height: 3,
+            points: [
+                SIMD2(0, 0),
+                drift(0.5, 0.0, 0.14, 0.05, 0.10, 0.0),
+                SIMD2(1, 0),
+
+                drift(0.0, 0.5, 0.05, 0.13, 0.13, 1.7),
+                drift(0.5, 0.5, 0.20, 0.17, 0.08, 3.1),
+                drift(1.0, 0.5, 0.05, 0.13, 0.11, 4.6),
+
+                SIMD2(0, 1),
+                drift(0.5, 1.0, 0.14, 0.05, 0.12, 2.4),
+                SIMD2(1, 1)
+            ],
+            colors: [
+                a.opacity(0.55), b.opacity(0.35), c.opacity(0.50),
+                c.opacity(0.40), a.opacity(0.65), b.opacity(0.45),
+                b.opacity(0.45), c.opacity(0.35), a.opacity(0.55)
+            ],
+            smoothsColors: true
+        )
+    }
+
+    // MARK: Pre-18 fallback
+
+    private func legacyBlobs(t: TimeInterval, rate: Double, lift: Double) -> some View {
+        Canvas { context, size in
+            let blobs: [(hue: Int, radius: CGFloat, ax: Double, ay: Double,
+                         sx: Double, sy: Double, px: Double, py: Double)] = [
+                (0, 300, 0.30, 0.20, 0.043, 0.031, 0.0, 1.1),
+                (1, 260, 0.26, 0.24, 0.029, 0.047, 2.2, 0.4),
+                (2, 220, 0.22, 0.28, 0.037, 0.023, 4.1, 3.3)
+            ]
+            for blob in blobs {
+                let cx = size.width * (0.5 + blob.ax * sin(t * blob.sx * rate + blob.px))
+                let cy = size.height * (0.5 + blob.ay * cos(t * blob.sy * rate + blob.py))
+                let rect = CGRect(x: cx - blob.radius, y: cy - blob.radius,
+                                  width: blob.radius * 2, height: blob.radius * 2)
+                context.fill(
+                    Path(ellipseIn: rect),
+                    with: .radialGradient(
+                        Gradient(colors: [tints[blob.hue].opacity(0.22 * lift),
+                                          tints[blob.hue].opacity(0)]),
+                        center: CGPoint(x: cx, y: cy),
+                        startRadius: 0, endRadius: blob.radius)
+                )
+            }
+        }
+        .blur(radius: 40)
+    }
+
+    // MARK: Motif
+
+    /// The icon's squares, rising slowly through the gradient.
     private func driftingPixels(t: TimeInterval, rate: Double, lift: Double) -> some View {
         Canvas { context, size in
-            let count = 22
-            for index in 0..<count {
+            for index in 0..<18 {
                 let seed = Double(index)
-                let speed = (0.014 + (seed.truncatingRemainder(dividingBy: 5)) * 0.006) * rate
+                let speed = (0.012 + (seed.truncatingRemainder(dividingBy: 5)) * 0.005) * rate
                 let progress = (t * speed + seed * 0.137).truncatingRemainder(dividingBy: 1)
 
                 let x = ((seed * 0.6180339887).truncatingRemainder(dividingBy: 1)
-                         + progress * 0.22).truncatingRemainder(dividingBy: 1)
+                         + progress * 0.18).truncatingRemainder(dividingBy: 1)
                 let y = 1.05 - progress * 1.15
                 guard y > -0.08 else { continue }
 
-                // fade in low, fade out high
                 let fade = min(1, min(progress * 5, (1 - progress) * 2.4))
-                let alpha = 0.16 * lift * fade
+                let alpha = 0.13 * lift * fade
                 guard alpha > 0.008 else { continue }
 
                 let side = 5 + (seed.truncatingRemainder(dividingBy: 4)) * 4
                 let rect = CGRect(x: x * size.width, y: y * size.height, width: side, height: side)
                 context.fill(Path(roundedRect: rect, cornerRadius: side * 0.28),
-                             with: .color(Theme.indigo.opacity(alpha)))
+                             with: .color(.white.opacity(alpha)))
             }
         }
     }
