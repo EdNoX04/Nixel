@@ -62,12 +62,23 @@ The interesting decisions here were measured rather than guessed.
 over the raw 768-float feature print, and those vectors are already unit length. So the
 prints are cached to disk as 3 KB blobs and all matching runs in Accelerate —
 `vDSP_distancesq` measured **~8.8M comparisons/sec**. Vision runs once per new photo and
-never again, which is what makes a rescan near-instant.
+never again, which is what makes a rescan near-instant. A cold scan of 368 photos and 11
+videos takes about 9 seconds.
 
-Grouping is a time-ordered sliding window (bursts and retakes sit next to each other in
-time) plus a pass that buckets by pixel dimensions, which catches the same picture
-downloaded twice months apart. Union-find merges the pairs into groups. Thresholds were
-calibrated against a fixture library with known groups, not picked by eye.
+Grouping is **leader clustering**, not union-find. The first version linked any pair under
+the threshold and let union-find merge the components; on a 266-photo library that produced
+a single 23-member "group" containing hay bales, a shoreline and a forest, because
+transitivity means one bad link welds two unrelated groups together. Now every photo is
+compared against a cluster's *anchor* rather than an arbitrary member, so a false link can
+add one wrong photo but can never merge two groups. A second pass buckets by pixel
+dimensions to catch the same picture downloaded twice months apart.
+
+Thresholds were measured on that 266-photo library, not guessed — and the measurement said
+something useful: **neither engine separates perfectly at realistic size.** The worst true
+pair and the nearest unrelated pair overlap, because real libraries genuinely contain
+similar-looking unrelated photos. So both thresholds sit *below the nearest unrelated pair*
+rather than above the furthest true one (Vision 0.26 against an across-min of 0.299).
+Missing a duplicate costs nothing; inventing one puts a stranger's photo in a delete list.
 
 **Blurry photos.** Variance of the Laplacian — the textbook measure — was implemented first
 and rejected: it cannot tell *"this scene has little detail"* from *"this photo is out of
@@ -81,6 +92,13 @@ or dense texture, blurred ones 0.42–0.47.
 screenshots that *lost* it — AirDropped, re-saved from a messaging app, restored from
 backup — by matching the device's exact native resolution, which a camera photo never hits
 because sensor aspect ratios differ.
+
+**People.** Vision detects faces, and a body pass catches figures turned away or far from
+the camera. This is the one signal that isn't about redundancy: a duplicate landscape is
+disposable, a duplicate of the only photo of someone is not, and perceptual similarity
+cannot tell them apart. So faces act as a brake — photos containing people are excluded
+from every "select all", badged, and preferred as the keeper within a group. The screens
+say what was held back rather than silently selecting fewer than advertised.
 
 **Contacts.** Linked by normalised name, shared phone (last 10 digits, so `+91 98765 43210`
 and `09876543210` match) or shared email. The Contacts framework has **no merge API**, so a
@@ -126,18 +144,24 @@ the agent does all the work and leaves only the irreversible tap to you.
 
 ## Known limits
 
-- **Vision's neural matcher cannot run in the iOS Simulator.** It fails with
-  `Failed to create espresso context` on every image. A pure-CPU descriptor fallback keeps
-  the app working there; vectors carry their engine so the two spaces are never compared.
-  On device, the neural path is used.
-- **Screenshots need a real device** for the system flag (the Simulator cannot set it).
+- **Vision's neural models cannot run in the iOS Simulator.** They fail with
+  `Failed to create espresso context`. That affects feature prints *and* face detection, so
+  in the Simulator the app falls back to a pure-CPU descriptor and reports people detection
+  as unavailable rather than silently returning "no people". On device both work.
+- **Screenshots need a real device** for the system flag; the Simulator cannot set it. A
+  secondary signal catches re-saved screenshots by exact native resolution.
 - **Sign in with Apple needs its capability** on the provisioning profile, which a free
-  Apple developer account cannot add. The button is real; without the capability it reports
-  that plainly and the other routes still work.
-- **Sizes below iOS 27** use a private `fileSize` key via KVC, because `PHAssetResource.dataSize`
-  is public only from iOS 27. There is a public `AVAsset` fallback beneath both.
+  Apple developer account cannot add. The button is real; without the capability it says so
+  and the other routes still work.
+- **The widget has no App Group,** so it shows device storage rather than reclaimable
+  space. That entitlement needs a paid membership and declaring it on a free personal team
+  breaks device signing. Wiring up the richer figures later is a small change.
+- **Sizes below iOS 27** use a private `fileSize` key via KVC, because
+  `PHAssetResource.dataSize` is public only from iOS 27. A public `AVAsset` fallback sits
+  beneath both.
 - The welcome screen is **optional by design** — the brief puts login out of scope, so
-  nothing in the app is ever gated behind it.
+  nothing in the app is ever gated behind it. Cloud sync is deliberately not implemented
+  for the same reason.
 
 ## Layout
 
@@ -152,7 +176,7 @@ Nixel/
 │   ├── Intelligence/  OCR + on-device model
 │   ├── Permissions/   photos + contacts, incl. limited access
 │   ├── Photos/     fetching, sizing, thumbnails
-│   ├── Similarity/ descriptors, cache, grouping, sharpness
+│   ├── Similarity/ descriptors, cache, clustering, sharpness, people
 │   └── Storage/    device capacity
 ├── DesignSystem/   tokens, Liquid Glass, components
 └── Features/       one folder per screen

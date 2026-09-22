@@ -38,6 +38,7 @@
 		6AD0987FEF561A51F06D7958 /* AgentFindingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED98ED9F8DE8C7906129B16 /* AgentFindingCard.swift */; };
 		6DB299F6931FA1626EDBA6A0 /* AppPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238B5121A564E75B4F02A9B /* AppPalette.swift */; };
 		6FFCDEAEC7936740AAD0D1E2 /* DuplicateContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF42D40A2D0D2335285CE54 /* DuplicateContactsView.swift */; };
+		7A9967A4778EF8B9FE336A2B /* NotchedMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E91AD5664394BC0BF6EE2BA /* NotchedMark.swift */; };
 		7D784B848572FF351CA73DB5 /* StorageHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C617B6DC1EC91601F839641 /* StorageHero.swift */; };
 		83C378DF0554F5B3201979B6 /* NixelAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64A347EDFFAC981D3AA3863 /* NixelAgent.swift */; };
 		85EFDFFD8772B4180AAADAA3 /* CleanupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A715EAC578B42D04CDDF39B /* CleanupModels.swift */; };
@@ -99,6 +100,7 @@
 		125500870DB46E9D890DA950 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		13203143BD165F360FF5608F /* SelectionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionBar.swift; sourceTree = "<group>"; };
 		25A53FD629FA9682D1C4EB80 /* PhotoAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAsset.swift; sourceTree = "<group>"; };
+		2E91AD5664394BC0BF6EE2BA /* NotchedMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchedMark.swift; sourceTree = "<group>"; };
 		2EF42D40A2D0D2335285CE54 /* DuplicateContactsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateContactsView.swift; sourceTree = "<group>"; };
 		322DDC3670D50C94CB097423 /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
 		32E235AAA8B35BE9FD8C719E /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 				8238B5121A564E75B4F02A9B /* AppPalette.swift */,
 				D71FBA59F375C6E1E511AB58 /* Components.swift */,
 				F482D96B25A1CFF0CDED0606 /* Glass.swift */,
+				2E91AD5664394BC0BF6EE2BA /* NotchedMark.swift */,
 				125500870DB46E9D890DA950 /* Theme.swift */,
 			);
 			path = DesignSystem;
@@ -566,6 +569,7 @@
 				4F2F82EE09E0E61F3BB78201 /* Navigator.swift in Sources */,
 				83C378DF0554F5B3201979B6 /* NixelAgent.swift in Sources */,
 				5508D7BA3716F65BECDC145A /* NixelApp.swift in Sources */,
+				7A9967A4778EF8B9FE336A2B /* NotchedMark.swift in Sources */,
 				035A94CCB2BA9A1997B276F1 /* PeopleDetector.swift in Sources */,
 				EFC31C575E05643C200CD5F5 /* PeopleHeldBackNote.swift in Sources */,
 				C1F6B182A46C0AD846E74195 /* PermissionCenter.swift in Sources */,

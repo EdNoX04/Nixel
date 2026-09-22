@@ -47,22 +47,12 @@ struct WelcomeView: View {
 
     private var mark: some View {
         VStack(spacing: Theme.Space.lg) {
-            // The icon's cascade, at rest.
-            HStack(alignment: .bottom, spacing: 7) {
-                ForEach(0..<4) { index in
-                    let side = 34 - CGFloat(index) * 7
-                    RoundedRectangle(cornerRadius: side * 0.28, style: .continuous)
-                        .fill(.white.opacity(1 - Double(index) * 0.24))
-                        .frame(width: side, height: side)
-                        .offset(y: markIn ? 0 : 26)
-                        .opacity(markIn ? 1 : 0)
-                        .animation(
-                            .spring(response: 0.6, dampingFraction: 0.7)
-                            .delay(Double(index) * 0.07),
-                            value: markIn
-                        )
-                }
-            }
+            // The app icon's shape, animated in: a square with a corner taken out and
+            // the removed piece set down beside it.
+            NotchedMark(side: 74, colour: .white)
+                .scaleEffect(markIn ? 1 : 0.82)
+                .opacity(markIn ? 1 : 0)
+                .animation(.spring(response: 0.62, dampingFraction: 0.68), value: markIn)
 
             VStack(spacing: 6) {
                 Text("Nixel")
