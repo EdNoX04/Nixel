@@ -14,7 +14,7 @@ enum DescriptorKind: UInt16 {
     var dimensions: Int {
         switch self {
         case .vision: return 768
-        case .grayscale: return 1024
+        case .grayscale: return 144
         }
     }
 
@@ -24,14 +24,14 @@ enum DescriptorKind: UInt16 {
     var duplicateThreshold: Float {
         switch self {
         case .vision: return 0.10
-        case .grayscale: return 0.08
+        case .grayscale: return 0.10
         }
     }
 
     var similarThreshold: Float {
         switch self {
         case .vision: return 0.26
-        case .grayscale: return 0.26
+        case .grayscale: return 0.425
         }
     }
 
@@ -108,12 +108,18 @@ enum DescriptorEngine {
 
     // MARK: CPU fallback
 
-    /// 32x32 luminance, mean-removed and L2-normalised.
+    /// 12x12 luminance, mean-removed and L2-normalised.
     ///
     /// Removing the mean makes it ignore overall brightness (so an exposure tweak still
     /// matches), and normalising makes Euclidean distance behave like cosine distance —
     /// the same maths the Vision path uses, so downstream code needs no special case.
-    private static func grayscaleDescriptor(for cgImage: CGImage, side: Int = 32) -> [Float] {
+    ///
+    /// The grid is deliberately coarse. Measured against a fixture library, a 32x32 grid
+    /// put a 93% recrop at distance 0.614 — further apart than two completely different
+    /// photos (0.549), so no threshold could work. Blurring the detail away by dropping to
+    /// 12x12 brings the same recrop to 0.382 against an across-scene floor of 0.471, which
+    /// separates. Vision needs none of this; it is robust to crops by construction.
+    private static func grayscaleDescriptor(for cgImage: CGImage, side: Int = 12) -> [Float] {
         let count = side * side
         var pixels = [UInt8](repeating: 0, count: count)
 

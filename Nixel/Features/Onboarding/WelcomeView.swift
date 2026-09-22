@@ -40,15 +40,7 @@ struct WelcomeView: View {
     // MARK: Background
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.24, green: 0.19, blue: 0.62),
-                Color(red: 0.16, green: 0.30, blue: 0.58),
-                Color(red: 0.03, green: 0.38, blue: 0.38)
-            ],
-            startPoint: .topLeading, endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        Theme.welcomeGradient.ignoresSafeArea()
     }
 
     // MARK: Mark
@@ -191,7 +183,7 @@ struct WelcomeView: View {
             } label: {
                 Text("Continue")
                     .font(.headline)
-                    .foregroundStyle(Color(red: 0.16, green: 0.14, blue: 0.42))
+                    .foregroundStyle(Theme.indigo)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(Capsule().fill(.white))

@@ -14,7 +14,9 @@
 		17161AC0D60299154A3927F1 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 125500870DB46E9D890DA950 /* Theme.swift */; };
 		177742D5AF096BAD8D2A164D /* CleanupSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B71A861EDB34E830DFD3D96 /* CleanupSelection.swift */; };
 		1AE83DC63388715699686B48 /* PhotoAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A53FD629FA9682D1C4EB80 /* PhotoAsset.swift */; };
+		2388E8C391E8645127206D24 /* AppPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238B5121A564E75B4F02A9B /* AppPalette.swift */; };
 		272A4CDD1454550FB64F0349 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4F4743DA725EDFE2417AFE6 /* Assets.xcassets */; };
+		2B87927FCFAF1883618A4E05 /* AppearanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ACFA5ED4DB476EDBC76DD97 /* AppearanceView.swift */; };
 		357E1216FC3EE4103D271B6C /* DeviceStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424490F0A6734A292F12B042 /* DeviceStorage.swift */; };
 		378706EC5719ADEE9A8515E8 /* PixelDriftView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD3167DD3B62E991B442524 /* PixelDriftView.swift */; };
 		3991C1FA72EDB3761640C82F /* LargeVideosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 806297AE7D57A6FC328EB271 /* LargeVideosView.swift */; };
@@ -76,9 +78,11 @@
 		72BD219A845C94C3E18427FA /* DebugContactSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugContactSeed.swift; sourceTree = "<group>"; };
 		790536BE4F02798068FBB8E1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		7976A21D29DAA0870D9758ED /* SimilarPhotosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarPhotosView.swift; sourceTree = "<group>"; };
+		7ACFA5ED4DB476EDBC76DD97 /* AppearanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceView.swift; sourceTree = "<group>"; };
 		7CC25DB91671F900EDC1E716 /* ReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewView.swift; sourceTree = "<group>"; };
 		7ED98ED9F8DE8C7906129B16 /* AgentFindingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFindingCard.swift; sourceTree = "<group>"; };
 		806297AE7D57A6FC328EB271 /* LargeVideosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeVideosView.swift; sourceTree = "<group>"; };
+		8238B5121A564E75B4F02A9B /* AppPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPalette.swift; sourceTree = "<group>"; };
 		8589641A6989C06E8BF4D10E /* FeaturePrintStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturePrintStore.swift; sourceTree = "<group>"; };
 		8902DB47AF0292520BC05FDF /* CleanupSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupSummaryView.swift; sourceTree = "<group>"; };
 		8A715EAC578B42D04CDDF39B /* CleanupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupModels.swift; sourceTree = "<group>"; };
@@ -195,9 +199,18 @@
 			path = Account;
 			sourceTree = "<group>";
 		};
+		77372975A2DE1A6EAADD1985 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				7ACFA5ED4DB476EDBC76DD97 /* AppearanceView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		7769AA6EE6FC3DEA472A2D27 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				8238B5121A564E75B4F02A9B /* AppPalette.swift */,
 				D71FBA59F375C6E1E511AB58 /* Components.swift */,
 				F482D96B25A1CFF0CDED0606 /* Glass.swift */,
 				125500870DB46E9D890DA950 /* Theme.swift */,
@@ -347,6 +360,7 @@
 				DDFE9D138F09911176CAF7C2 /* Onboarding */,
 				0B46E02EBA6662176494EB8C /* Review */,
 				88DED159D854E1B815F85F87 /* Screenshots */,
+				77372975A2DE1A6EAADD1985 /* Settings */,
 				9B27A41379345222DE273018 /* Shared */,
 				9227FFFB980DB2FA239C4E58 /* SimilarPhotos */,
 				C734AB71190A6522E378A3B7 /* Swipe */,
@@ -436,6 +450,8 @@
 				D68DE95A8D2DE1BCB01F43AF /* AccountStore.swift in Sources */,
 				6AD0987FEF561A51F06D7958 /* AgentFindingCard.swift in Sources */,
 				E18B677BD6297AD42B31FA20 /* AgentSettingsView.swift in Sources */,
+				2388E8C391E8645127206D24 /* AppPalette.swift in Sources */,
+				2B87927FCFAF1883618A4E05 /* AppearanceView.swift in Sources */,
 				ACB57FB0FCFABD19BAA8BA57 /* AssetThumbnailView.swift in Sources */,
 				A9ED13B771E90D7D489AD0B2 /* CategoryDetailView.swift in Sources */,
 				85EFDFFD8772B4180AAADAA3 /* CleanupModels.swift in Sources */,

@@ -1,33 +1,40 @@
 import SwiftUI
 import UIKit
 
-/// Central design tokens. Everything visual in Nixel pulls from here so the app reads as
-/// one system in both light and dark mode.
+/// Central design tokens.
 ///
-/// Brand and category colours are *adaptive*, not fixed. A single sRGB value that looks
-/// right on white will usually be too dark and too saturated against a near-black
-/// background, so each token declares both renditions and iOS resolves it per trait.
+/// Every colour resolves through the currently selected `AppPalette` and is *adaptive*:
+/// each token declares a light and a dark rendition and iOS picks per trait. That matters
+/// more than it sounds — a single sRGB value tuned against white is reliably too dark and
+/// too saturated against a near-black background, which is how accents end up unreadable
+/// in dark mode.
 enum Theme {
 
-    // MARK: Helper
+    // MARK: Resolution
 
-    private static func adaptive(
-        light: (r: Double, g: Double, b: Double),
-        dark: (r: Double, g: Double, b: Double)
-    ) -> Color {
+    private static func adaptive(_ pair: PaletteSpec.Pair) -> Color {
         Color(uiColor: UIColor { traits in
-            let c = traits.userInterfaceStyle == .dark ? dark : light
-            return UIColor(red: c.r, green: c.g, blue: c.b, alpha: 1)
+            UIColor(hex: traits.userInterfaceStyle == .dark ? pair.dark : pair.light)
         })
     }
 
+    private static var spec: PaletteSpec { AppPalette.current.spec }
+
     // MARK: Brand
 
-    static let indigo = adaptive(light: (0.365, 0.310, 0.937), dark: (0.573, 0.537, 0.988))
-    static let teal   = adaptive(light: (0.051, 0.580, 0.533), dark: (0.204, 0.776, 0.718))
+    /// Kept named `indigo`/`teal` because they are used as brand roles throughout, not
+    /// as literal hues — the palette decides what colour they actually are.
+    static var indigo: Color { adaptive(spec.primary) }
+    static var teal: Color { adaptive(spec.secondary) }
 
     static var brandGradient: LinearGradient {
         LinearGradient(colors: [indigo, teal], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    /// The welcome screen's full-bleed background.
+    static var welcomeGradient: LinearGradient {
+        LinearGradient(colors: spec.welcome.map { Color(hex: $0) },
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     // MARK: Category accents
@@ -35,17 +42,17 @@ enum Theme {
     // Each cleanup category owns one hue so a colour alone identifies it on the dashboard,
     // in the review list and on the summary screen.
 
-    static let similar     = adaptive(light: (0.420, 0.360, 0.950), dark: (0.612, 0.576, 0.992))
-    static let screenshots = adaptive(light: (0.855, 0.490, 0.090), dark: (0.988, 0.678, 0.286))
-    static let videos      = adaptive(light: (0.855, 0.255, 0.365), dark: (0.988, 0.463, 0.553))
-    static let contacts    = adaptive(light: (0.110, 0.545, 0.800), dark: (0.400, 0.741, 0.976))
-    static let blurry      = adaptive(light: (0.455, 0.412, 0.510), dark: (0.686, 0.647, 0.733))
+    static var similar: Color { adaptive(spec.similar) }
+    static var screenshots: Color { adaptive(spec.screenshots) }
+    static var videos: Color { adaptive(spec.videos) }
+    static var contacts: Color { adaptive(spec.contacts) }
+    static var blurry: Color { adaptive(spec.blurry) }
 
     // MARK: Semantic
 
-    static let danger  = adaptive(light: (0.831, 0.216, 0.239), dark: (0.988, 0.451, 0.451))
-    static let success = adaptive(light: (0.086, 0.600, 0.373), dark: (0.290, 0.827, 0.573))
-    static let warning = adaptive(light: (0.722, 0.475, 0.055), dark: (0.976, 0.749, 0.271))
+    static var danger: Color { adaptive(spec.danger) }
+    static var success: Color { adaptive(spec.success) }
+    static var warning: Color { adaptive(spec.warning) }
 
     // MARK: Layout
 

@@ -4,6 +4,7 @@ import Photos
 struct DashboardView: View {
     @Environment(PermissionCenter.self) private var permissions
     @Environment(ScanCoordinator.self) private var scanner
+    @State private var showAppearance = false
 
     var body: some View {
         ScrollView {
@@ -25,6 +26,12 @@ struct DashboardView: View {
         .navigationTitle("Nixel")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { showAppearance = true } label: {
+                    Image(systemName: "paintpalette")
+                }
+                .accessibilityLabel("Appearance")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     AgentSettingsView()
@@ -34,6 +41,7 @@ struct DashboardView: View {
                 .accessibilityLabel("Daily agent")
             }
         }
+        .sheet(isPresented: $showAppearance) { AppearanceView() }
         .task {
             // Ask once on first launch, then scan straight away if we're allowed.
             if permissions.photos == .notDetermined {
