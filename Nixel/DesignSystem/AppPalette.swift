@@ -30,33 +30,30 @@ struct PaletteSpec {
 /// The palettes the user can choose between.
 enum AppPalette: String, CaseIterable, Identifiable, Codable {
     case forest
-    case ivory
-    case burgundy
-    case sageGold
-    case slate
-    case nixel
+    case mocha
+    case buttermilk
+    case blush
+    case twinkle
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .forest:   return "Forest"
-        case .ivory:    return "Ivory"
-        case .burgundy: return "Burgundy"
-        case .sageGold: return "Sage & Gold"
-        case .slate:    return "Slate"
-        case .nixel:    return "Original"
+        case .forest:     return "Forest"
+        case .mocha:      return "Mocha"
+        case .buttermilk: return "Buttermilk"
+        case .blush:      return "Blush"
+        case .twinkle:    return "Twinkle"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .forest:   return "Deep greens"
-        case .ivory:    return "Warm beige and bronze"
-        case .burgundy: return "Deep wine and rose"
-        case .sageGold: return "Sage and warm gold"
-        case .slate:    return "Navy and cool blues"
-        case .nixel:    return "Violet and teal"
+        case .forest:     return "Deep greens"
+        case .mocha:      return "Espresso and taupe"
+        case .buttermilk: return "Cream and midnight blue"
+        case .blush:      return "Sand, rose and burgundy"
+        case .twinkle:    return "Night navy and tan"
         }
     }
 
@@ -86,83 +83,68 @@ enum AppPalette: String, CaseIterable, Identifiable, Codable {
                 welcome:     [0x051F20, 0x163832, 0x235347]
             )
 
-        // Warm neutral: parchment through bronze to a near-black espresso.
-        case .ivory:
+        // #291C0E #6E473B #A78D78 #BEB5A9 #E1D4C2
+        case .mocha:
             return PaletteSpec(
-                primary:     (0x8A6F47, 0xD9C2A0),
-                secondary:   (0x3E3428, 0xEFE3D2),
-                similar:     (0x8A6F47, 0xD9C2A0),
-                screenshots: (0xB07C2B, 0xE8B96B),
-                videos:      (0x9C5A44, 0xE0977C),
-                contacts:    (0x5F6F63, 0xA9BFAE),
-                blurry:      (0x8A8175, 0xBDB3A4),
-                danger:      (0xA8453A, 0xE8887C),
+                primary:     (0x6E473B, 0xC0A48F),
+                secondary:   (0x291C0E, 0xE1D4C2),
+                similar:     (0x6E473B, 0xC0A48F),
+                screenshots: (0xA9732B, 0xE0B274),
+                videos:      (0x8C4A3C, 0xDB9280),
+                contacts:    (0x5E6B6B, 0xA9BCBC),
+                blurry:      (0x8A8175, 0xBEB5A9),
+                danger:      (0xA34338, 0xE8897C),
                 success:     (0x4F7A52, 0x9BC79C),
-                warning:     (0xB07C2B, 0xE8B96B),
-                welcome:     [0x3E3428, 0x6B5942, 0xB39B74]
+                warning:     (0xA9732B, 0xE0B274),
+                welcome:     [0x291C0E, 0x6E473B, 0xA78D78]
             )
 
-        // Deep wine through rose, with a muted gold for contrast.
-        case .burgundy:
+        // #FFF2BA buttermilk · #0F3C65 midnight blue
+        case .buttermilk:
             return PaletteSpec(
-                primary:     (0x7A203A, 0xD98BA0),
-                secondary:   (0x4A1220, 0xF0C6D2),
-                similar:     (0x7A203A, 0xD98BA0),
-                screenshots: (0xA87A2A, 0xE6BB6C),
-                videos:      (0x9B3B4E, 0xE08A9B),
-                contacts:    (0x4C5B7A, 0xA3B4D6),
-                blurry:      (0x7E6B72, 0xB7A7AE),
-                danger:      (0xA5303A, 0xEC7F88),
-                success:     (0x3F7A5C, 0x8CC9A9),
-                warning:     (0xA87A2A, 0xE6BB6C),
-                welcome:     [0x2E0A16, 0x4A1220, 0x7A203A]
-            )
-
-        // #6D9773 #0C3B2E #BB8A52 #FFBA00
-        case .sageGold:
-            return PaletteSpec(
-                primary:     (0x0C3B2E, 0x6D9773),
-                secondary:   (0x6D9773, 0xA8C4AE),
-                similar:     (0x2E7D6B, 0x6D9773),
-                screenshots: (0xC9930F, 0xFFBA00),
-                videos:      (0xA3703C, 0xBB8A52),
-                contacts:    (0x246B7A, 0x7FBDCB),
-                blurry:      (0x76837C, 0xADB8B2),
-                danger:      (0xB0463A, 0xEE8A7C),
-                success:     (0x2F7A4F, 0x82CFA0),
-                warning:     (0xC9930F, 0xFFBA00),
-                welcome:     [0x0C3B2E, 0x235844, 0x6D9773]
-            )
-
-        // #00002A #1A3F75 and the cooler steps above them
-        case .slate:
-            return PaletteSpec(
-                primary:     (0x1A3F75, 0x9BB8D3),
-                secondary:   (0x00002A, 0x5C7FA8),
-                similar:     (0x1A3F75, 0x9BB8D3),
-                screenshots: (0xA8761F, 0xE2B25C),
-                videos:      (0x9B3F52, 0xE08196),
+                primary:     (0x0F3C65, 0xFFF2BA),
+                secondary:   (0x2E5C8A, 0x1E5A8F),
+                similar:     (0x0F3C65, 0xE8DCA4),
+                screenshots: (0xC9952A, 0xF0CE72),
+                videos:      (0x9B3F52, 0xE8919F),
                 contacts:    (0x2C6E8F, 0x86BEDA),
-                blurry:      (0x5E6B7A, 0xA6B3C0),
-                danger:      (0xA93B44, 0xEE858E),
+                blurry:      (0x6B7280, 0xAEB6C2),
+                danger:      (0xA5303A, 0xEC7F88),
                 success:     (0x2B7355, 0x7FCBA3),
-                warning:     (0xA8761F, 0xE2B25C),
-                welcome:     [0x00002A, 0x1A3F75, 0x3E6491]
+                warning:     (0xC9952A, 0xF0CE72),
+                welcome:     [0x0F3C65, 0x1E5A8F, 0xC9B36A]
             )
 
-        case .nixel:
+        // #EEE4DA creme · #D8C4AC sand · #C8A49F dusty pink · #4D0E13 burgundy
+        case .blush:
             return PaletteSpec(
-                primary:     (0x5D4FEF, 0x9289FC),
-                secondary:   (0x0D9488, 0x34C6B7),
-                similar:     (0x6B5CF2, 0x9C93FD),
-                screenshots: (0xDA7D17, 0xFCAD49),
-                videos:      (0xDA415D, 0xFC768D),
-                contacts:    (0x1C8BCC, 0x66BDF9),
-                blurry:      (0x746982, 0xAFA5BB),
-                danger:      (0xD43740, 0xFC7373),
-                success:     (0x169960, 0x4AD392),
-                warning:     (0xB87A0E, 0xF9BF45),
-                welcome:     [0x3D319E, 0x294D94, 0x086160]
+                primary:     (0x4D0E13, 0xD8A9A4),
+                secondary:   (0xC8A49F, 0xEEE4DA),
+                similar:     (0x7A2A30, 0xD8A9A4),
+                screenshots: (0xA98243, 0xD8C4AC),
+                videos:      (0x8C3742, 0xDC8C96),
+                contacts:    (0x5F6F72, 0xA9BCC0),
+                blurry:      (0x8A7F79, 0xC3B7B0),
+                danger:      (0x9B2630, 0xE8858F),
+                success:     (0x4A7A5C, 0x93C9A8),
+                warning:     (0xA98243, 0xE0C089),
+                welcome:     [0x4D0E13, 0x8C3742, 0xC8A49F]
+            )
+
+        // Night navy with a warm tan accent.
+        case .twinkle:
+            return PaletteSpec(
+                primary:     (0x3A4A63, 0xD9A87C),
+                secondary:   (0x2B3442, 0xA8B5B8),
+                similar:     (0x3A4A63, 0xA8B5B8),
+                screenshots: (0xB07A42, 0xD9A87C),
+                videos:      (0x8C5A5A, 0xD89A9A),
+                contacts:    (0x4A6B7A, 0x93B8C4),
+                blurry:      (0x6B7280, 0xA8B5B8),
+                danger:      (0xA23F45, 0xE8888E),
+                success:     (0x3F7A63, 0x8CC9B0),
+                warning:     (0xB07A42, 0xE0B583),
+                welcome:     [0x1F2632, 0x2B3442, 0x3A4A63]
             )
         }
     }

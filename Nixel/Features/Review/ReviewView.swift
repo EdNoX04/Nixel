@@ -155,7 +155,7 @@ struct ReviewView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .buttonStyle(GlassActionButtonStyle(tint: Theme.danger))
+                .buttonStyle(GlassActionButtonStyle(tint: Theme.danger, labelColour: .white))
                 .disabled(runner.isRunning)
             }
             .padding(.horizontal, Theme.Space.xl)

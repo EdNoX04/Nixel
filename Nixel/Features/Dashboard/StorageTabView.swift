@@ -3,9 +3,9 @@ import Photos
 
 /// The storage tab: the number people opened the app for, given the whole screen.
 ///
-/// The five cleanup surfaces live in the tab bar now, so this screen carries only the
-/// headline figure, the primary action, and the things that do not deserve a tab of their
-/// own — blurry photos and whatever the daily agent last turned up.
+/// The five cleanup surfaces live in the tab bar, so listing them here as well said the
+/// same thing twice and pushed the headline figure up and out of the way. What remains is
+/// the ring, what it means, and the one action — centred, over the ambient backdrop.
 struct StorageTabView: View {
     @Environment(PermissionCenter.self) private var permissions
     @Environment(ScanCoordinator.self) private var scanner
@@ -16,42 +16,42 @@ struct StorageTabView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
             AmbientBackground(isScanning: scanner.isScanning)
 
-            ScrollView {
-                VStack(spacing: Theme.Space.xl) {
-                    StorageHero(
-                        snapshot: scanner.storage,
-                        reclaimable: scanner.totalReclaimable,
-                        isScanning: scanner.isScanning,
-                        progress: scanner.overallProgress
-                    )
-                    .frame(height: 330)
-                    .padding(.top, Theme.Space.sm)
+            VStack(spacing: Theme.Space.xl) {
+                Spacer(minLength: 0)
 
-                    if scanner.totalReclaimable > 0 && !scanner.isScanning {
-                        VStack(spacing: 2) {
-                            Text("\(Bytes.string(scanner.totalReclaimable)) can be freed")
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(Theme.success)
-                            Text("Reviewed by you before anything is removed")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .transition(.opacity)
+                StorageHero(
+                    snapshot: scanner.storage,
+                    reclaimable: scanner.totalReclaimable,
+                    isScanning: scanner.isScanning,
+                    progress: scanner.overallProgress
+                )
+                .frame(width: 236, height: 236)
+
+                if scanner.totalReclaimable > 0 && !scanner.isScanning {
+                    VStack(spacing: 2) {
+                        Text("\(Bytes.string(scanner.totalReclaimable)) can be freed")
+                            .font(.headline)
+                            .foregroundStyle(Theme.success)
+                        Text("Reviewed by you before anything is removed")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-
-                    scanButton.padding(.horizontal, Theme.Space.xl)
-
-                    // Deliberately nothing else. The tab bar already lists every
-                    // destination, so repeating them here was saying the same thing twice
-                    // and burying the number people opened the app to see.
-                    if permissions.photos == .limited { LimitedAccessNotice() }
-
-                    footer
+                    .transition(.opacity)
                 }
-                .padding(.horizontal, Theme.Space.lg)
-                .padding(.bottom, Theme.Space.xxl)
+
+                scanButton
+                    .padding(.horizontal, Theme.Space.xxl)
+
+                if permissions.photos == .limited {
+                    LimitedAccessNotice()
+                        .padding(.horizontal, Theme.Space.lg)
+                }
+
+                footer
+
+                Spacer(minLength: 0)
             }
-            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("Nixel")
         .navigationBarTitleDisplayMode(.inline)
@@ -115,12 +115,13 @@ struct StorageTabView: View {
     private var footer: some View {
         VStack(spacing: 4) {
             Label("Everything stays on your iPhone", systemImage: "lock.shield")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             if let date = scanner.lastScanDate {
                 Text("Last scan \(date.formatted(date: .omitted, time: .shortened)) · \(scanner.photosAnalysed) photos")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
-        .padding(.top, Theme.Space.sm)
     }
 }

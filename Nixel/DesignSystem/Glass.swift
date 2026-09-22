@@ -41,11 +41,13 @@ extension View {
 struct GlassActionButtonStyle: ButtonStyle {
     var tint: Color
     var prominent: Bool = true
+    /// Defaults to the palette-aware label colour; destructive buttons pass white.
+    var labelColour: Color = Theme.onPrimary
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(prominent ? Color.white : tint)
+            .foregroundStyle(prominent ? labelColour : tint)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 15)
             .background {

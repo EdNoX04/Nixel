@@ -30,7 +30,7 @@ struct SelectionBar: View {
                         Text("Review").font(.subheadline.weight(.semibold))
                         Image(systemName: "arrow.right").font(.caption.weight(.bold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onPrimary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(Capsule().fill(Theme.indigo.gradient))

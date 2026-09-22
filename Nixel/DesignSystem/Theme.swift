@@ -27,6 +27,27 @@ enum Theme {
     static var indigo: Color { adaptive(spec.primary) }
     static var teal: Color { adaptive(spec.secondary) }
 
+    /// Black or white, whichever actually reads against `indigo` — resolved per appearance.
+    ///
+    /// Palettes are not all dark-on-light. Buttermilk's dark-mode primary is cream, and
+    /// white text on it is invisible. Rather than hand-maintain a label colour per palette
+    /// per appearance, this derives it from the primary's relative luminance.
+    static var onPrimary: Color {
+        let pair = spec.primary
+        return Color(uiColor: UIColor { traits in
+            let hex = traits.userInterfaceStyle == .dark ? pair.dark : pair.light
+            return Self.isLight(hex) ? UIColor(white: 0.08, alpha: 1) : .white
+        })
+    }
+
+    /// Relative luminance, sRGB coefficients.
+    private static func isLight(_ hex: UInt32) -> Bool {
+        let r = Double((hex >> 16) & 0xFF) / 255
+        let g = Double((hex >> 8) & 0xFF) / 255
+        let b = Double(hex & 0xFF) / 255
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.58
+    }
+
     static var brandGradient: LinearGradient {
         LinearGradient(colors: [indigo, teal], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
