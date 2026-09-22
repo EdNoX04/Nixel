@@ -25,6 +25,7 @@
 		5508D7BA3716F65BECDC145A /* NixelApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C979060BE2405F3C5B86A065 /* NixelApp.swift */; };
 		55AEA8296030E6F116E5BE14 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322DDC3670D50C94CB097423 /* ThumbnailLoader.swift */; };
 		5F3298D6512A13B7035A3D04 /* ScreenshotTriage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24EA640AF3D8DB030522D33 /* ScreenshotTriage.swift */; };
+		66C8D80104D7AAB48ED66A0B /* SwipeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 470C6D9D188457FC93BFBFDE /* SwipeReviewView.swift */; };
 		6AD0987FEF561A51F06D7958 /* AgentFindingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED98ED9F8DE8C7906129B16 /* AgentFindingCard.swift */; };
 		6FFCDEAEC7936740AAD0D1E2 /* DuplicateContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF42D40A2D0D2335285CE54 /* DuplicateContactsView.swift */; };
 		83C378DF0554F5B3201979B6 /* NixelAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64A347EDFFAC981D3AA3863 /* NixelAgent.swift */; };
@@ -61,6 +62,7 @@
 		424490F0A6734A292F12B042 /* DeviceStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceStorage.swift; sourceTree = "<group>"; };
 		4388F3C5D3684DD16C913AC8 /* Navigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Navigator.swift; sourceTree = "<group>"; };
 		44FF35F6CBFF8C9D4D95661F /* ScanCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCoordinator.swift; sourceTree = "<group>"; };
+		470C6D9D188457FC93BFBFDE /* SwipeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeReviewView.swift; sourceTree = "<group>"; };
 		51199D61941ADC747124F80F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		52F92E166CD956FF5E38FD12 /* Descriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Descriptor.swift; sourceTree = "<group>"; };
 		55AAAFB3328B7240841CBBD0 /* AssetThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetThumbnailView.swift; sourceTree = "<group>"; };
@@ -293,6 +295,14 @@
 			path = Storage;
 			sourceTree = "<group>";
 		};
+		C734AB71190A6522E378A3B7 /* Swipe */ = {
+			isa = PBXGroup;
+			children = (
+				470C6D9D188457FC93BFBFDE /* SwipeReviewView.swift */,
+			);
+			path = Swipe;
+			sourceTree = "<group>";
+		};
 		C7AD34F49E6FAA94E04C0882 /* Photos */ = {
 			isa = PBXGroup;
 			children = (
@@ -314,6 +324,7 @@
 				88DED159D854E1B815F85F87 /* Screenshots */,
 				9B27A41379345222DE273018 /* Shared */,
 				9227FFFB980DB2FA239C4E58 /* SimilarPhotos */,
+				C734AB71190A6522E378A3B7 /* Swipe */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -434,6 +445,7 @@
 				FA129D66DFA0677B8ECCB6AC /* Sharpness.swift in Sources */,
 				0877249E43072E9CD732CB3B /* SimilarPhotosView.swift in Sources */,
 				9811C09D83DDCF8E0B77617F /* SimilarityEngine.swift in Sources */,
+				66C8D80104D7AAB48ED66A0B /* SwipeReviewView.swift in Sources */,
 				17161AC0D60299154A3927F1 /* Theme.swift in Sources */,
 				55AEA8296030E6F116E5BE14 /* ThumbnailLoader.swift in Sources */,
 			);

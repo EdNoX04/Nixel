@@ -35,6 +35,17 @@ struct LargeVideosView: View {
         }
         .navigationTitle("Large Videos")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !videos.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SwipeReviewView(category: .largeVideos, assets: videos)
+                    } label: {
+                        Label("Quick Review", systemImage: "rectangle.stack")
+                    }
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             if selection.count(in: .largeVideos) > 0 {
                 SelectionBar(count: selection.count(in: .largeVideos),

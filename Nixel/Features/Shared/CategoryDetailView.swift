@@ -74,6 +74,17 @@ struct PhotoGridScreen: View {
         }
         .navigationTitle(category.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !assets.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SwipeReviewView(category: category, assets: assets)
+                    } label: {
+                        Label("Quick Review", systemImage: "rectangle.stack")
+                    }
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             if selection.count(in: category) > 0 {
                 SelectionBar(count: selection.count(in: category),

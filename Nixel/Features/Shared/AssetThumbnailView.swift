@@ -7,6 +7,8 @@ struct AssetThumbnailView: View {
     var side: CGFloat
     var isSelected: Bool
     var showsBestBadge: Bool = false
+    /// Swipe review shows one card at a time, where a selection circle is just noise.
+    var showsChrome: Bool = true
     var onTap: () -> Void
 
     @State private var image: UIImage?
@@ -28,11 +30,11 @@ struct AssetThumbnailView: View {
         .frame(width: side, height: side)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.thumb, style: .continuous))
         .overlay(alignment: .bottomLeading) { durationBadge }
-        .overlay(alignment: .topTrailing) { selectionMark }
+        .overlay(alignment: .topTrailing) { if showsChrome { selectionMark } }
         .overlay(alignment: .topLeading) { bestBadge }
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.thumb, style: .continuous)
-                .strokeBorder(isSelected ? Theme.danger : .clear, lineWidth: 3)
+                .strokeBorder(isSelected && showsChrome ? Theme.danger : .clear, lineWidth: 3)
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)

@@ -84,6 +84,17 @@ struct ScreenshotsView: View {
         }
         .navigationTitle("Screenshots")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !assets.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SwipeReviewView(category: .screenshots, assets: assets)
+                    } label: {
+                        Label("Quick Review", systemImage: "rectangle.stack")
+                    }
+                }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             if selection.count(in: .screenshots) > 0 {
                 SelectionBar(count: selection.count(in: .screenshots),
