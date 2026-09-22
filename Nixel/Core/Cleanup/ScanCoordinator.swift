@@ -54,18 +54,30 @@ final class ScanCoordinator {
 
     // MARK: Derived
 
-    /// Rough overall progress, for the hero readout while scanning.
+    /// Overall scan progress, weighted by where the time actually goes.
+    ///
+    /// The old version averaged five categories equally. Screenshots and videos finish in
+    /// a second, so it jumped straight to 40% and then sat there for the whole of the
+    /// similar-photo pass — which is nearly all the work — looking hung. Categories that
+    /// are not part of this scan (contacts without permission, say) are left out rather
+    /// than counted as zero, which also stopped it topping out at 80%.
     var overallProgress: Double {
-        let states = CleanupCategory.allCases.compactMap { summaries[$0]?.state }
-        guard !states.isEmpty else { return 0 }
-        let total = states.reduce(0.0) { partial, state in
+        let weights: [CleanupCategory: Double] = [
+            .screenshots: 0.05, .largeVideos: 0.05, .similarPhotos: 0.80,
+            .blurryPhotos: 0.05, .duplicateContacts: 0.05
+        ]
+        var done = 0.0, total = 0.0
+        for (category, weight) in weights {
+            guard let state = summaries[category]?.state else { continue }
             switch state {
-            case .scanning(let p): return partial + p
-            case .ready, .blocked: return partial + 1
-            case .idle: return partial
+            case .idle: continue
+            case .blocked: continue
+            case .scanning(let p): done += weight * p; total += weight
+            case .ready: done += weight; total += weight
             }
         }
-        return min(1, total / Double(states.count))
+        guard total > 0 else { return 0 }
+        return min(1, done / total)
     }
 
     /// Total space the current findings could free.

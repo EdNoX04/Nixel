@@ -7,6 +7,8 @@ import SwiftUI
 /// anything behind your back.
 struct AgentSettingsView: View {
     @State private var agent = AgentViewModel()
+    @Environment(ScanCoordinator.self) private var scanner
+    @Environment(PermissionCenter.self) private var permissions
 
     var body: some View {
         List {
@@ -118,6 +120,27 @@ struct AgentSettingsView: View {
 
             #if DEBUG
             Section {
+                let files = DemoLibrary.availableFiles().count
+                Button {
+                    Task { await importDemo() }
+                } label: {
+                    HStack {
+                        Text(agent.demoBusy ? "Importing…" : "Import demo library")
+                        Spacer()
+                        if agent.demoBusy {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("\(files) files").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .disabled(files == 0 || agent.demoBusy)
+
+                Button("Remove demo library", role: .destructive) {
+                    Task { await removeDemo() }
+                }
+                .disabled(DemoLibrary.importedCount == 0 || agent.demoBusy)
+
                 Button("Seed test contacts") {
                     try? DebugContactSeed.seed()
                     agent.seedMessage = "Seeded \(DebugContactSeed.fixtures.count) contacts"
@@ -129,7 +152,7 @@ struct AgentSettingsView: View {
             } header: {
                 Text("Developer")
             } footer: {
-                Text(agent.seedMessage ?? "Debug builds only — never shipped.")
+                Text(agent.seedMessage ?? "Debug builds only — never shipped. For a private demo, give Nixel limited Photos access with nothing selected, then import: iOS shows the app only the photos it created.")
             }
             #endif
         }
@@ -137,6 +160,35 @@ struct AgentSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { agent.refresh() }
     }
+
+    #if DEBUG
+    private func importDemo() async {
+        agent.demoBusy = true
+        defer { agent.demoBusy = false }
+        do {
+            let count = try await DemoLibrary.importAll { done, total in
+                Task { @MainActor in agent.seedMessage = "Imported \(done) of \(total)…" }
+            }
+            agent.seedMessage = "Imported \(count) items. Rescanning…"
+            permissions.refresh()
+            scanner.scanPhotos(access: permissions.photos)
+        } catch {
+            agent.seedMessage = "Import failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func removeDemo() async {
+        agent.demoBusy = true
+        defer { agent.demoBusy = false }
+        do {
+            let count = try await DemoLibrary.removeAll()
+            agent.seedMessage = "Removed \(count) demo items — empty Recently Deleted to finish."
+            scanner.scanPhotos(access: permissions.photos)
+        } catch {
+            agent.seedMessage = "Nothing removed."
+        }
+    }
+    #endif
 }
 
 @Observable
@@ -144,6 +196,7 @@ struct AgentSettingsView: View {
 final class AgentViewModel {
     var isRunning = false
     var seedMessage: String?
+    var demoBusy = false
     var lastFinding: NixelAgent.Finding?
 
     var isEnabled: Bool {

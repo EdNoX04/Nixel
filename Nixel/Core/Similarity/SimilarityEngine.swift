@@ -82,9 +82,15 @@ actor SimilarityEngine {
                 store.store(descriptor, sharpness: sharpness, people: people,
                             for: id, modified: modified)
                 done += 1
-                if done % 20 == 0 || done == missing.count {
+                // Fine-grained: on a large library a 20-photo step left the ring frozen
+                // long enough to look hung.
+                if done % 4 == 0 || done == missing.count {
                     progress(Double(done) / Double(missing.count))
                 }
+                // Save as we go. The cache used to be written only once the whole pass
+                // finished, so backgrounding the app partway through a big library threw
+                // every analysed photo away.
+                if done % 150 == 0 { store.save() }
                 if Task.isCancelled { break }
                 schedule()
             }
@@ -310,13 +316,23 @@ actor SimilarityEngine {
             : CGSize(width: side, height: side)
 
         return await withCheckedContinuation { continuation in
-            PHImageManager.default().requestImage(
+            // Photos normally answers every request, but a single asset that never calls
+            // back would otherwise hold its slot in the task group forever and freeze the
+            // scan at whatever percentage it had reached. A deadline guarantees progress;
+            // the gate guarantees the continuation resumes exactly once.
+            let gate = ResumeOnce(continuation)
+            let requestID = PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: target,
                 contentMode: contentMode,
                 options: options
             ) { image, _ in
-                continuation.resume(returning: image?.cgImage)
+                gate.resume(with: image?.cgImage)
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 6) {
+                if gate.resume(with: nil) {
+                    PHImageManager.default().cancelImageRequest(requestID)
+                }
             }
         }
     }
@@ -329,5 +345,28 @@ actor SimilarityEngine {
         let sharpness = Sharpness.measure(cgImage) ?? 0
         let people = PeopleDetector.count(in: cgImage)
         return (descriptor, sharpness, people)
+    }
+}
+
+
+/// Resumes a continuation at most once, whichever caller gets there first.
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<CGImage?, Never>?
+
+    init(_ continuation: CheckedContinuation<CGImage?, Never>) {
+        self.continuation = continuation
+    }
+
+    /// Returns true if this call was the one that resumed.
+    @discardableResult
+    func resume(with value: CGImage?) -> Bool {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        guard let pending else { return false }
+        pending.resume(returning: value)
+        return true
     }
 }
