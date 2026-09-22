@@ -89,6 +89,48 @@ final class ScanCoordinator {
         }
     }
 
+    /// Drops assets that have just been deleted from the in-memory results, so the user
+    /// never sees a thumbnail for something that is already gone. Cheaper and far less
+    /// jarring than re-running the whole scan after every cleanup.
+    func removeDeleted(ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+
+        screenshots.removeAll { ids.contains($0.id) }
+        largeVideos.removeAll { ids.contains($0.id) }
+        blurryPhotos.removeAll { ids.contains($0.id) }
+
+        similarGroups = similarGroups.compactMap { group in
+            var updated = group
+            updated.assets.removeAll { ids.contains($0.id) }
+            // A group with one photo left is no longer a duplicate group.
+            guard updated.assets.count > 1 else { return nil }
+            if ids.contains(updated.bestID) {
+                updated.bestID = SimilarityEngine.pickBest(from: updated.assets)
+            }
+            return updated
+        }
+
+        for id in ids { screenshotVerdicts.removeValue(forKey: id) }
+
+        recomputeSummaries()
+    }
+
+    private func recomputeSummaries() {
+        summaries[.screenshots] = CategorySummary(
+            state: .ready, itemCount: screenshots.count,
+            reclaimableBytes: screenshots.reduce(0) { $0 + $1.bytes })
+        summaries[.largeVideos] = CategorySummary(
+            state: .ready, itemCount: largeVideos.count,
+            reclaimableBytes: largeVideos.reduce(0) { $0 + $1.bytes })
+        summaries[.blurryPhotos] = CategorySummary(
+            state: .ready, itemCount: blurryPhotos.count,
+            reclaimableBytes: blurryPhotos.reduce(0) { $0 + $1.bytes })
+        summaries[.similarPhotos] = CategorySummary(
+            state: .ready,
+            itemCount: similarGroups.reduce(0) { $0 + $1.others.count },
+            reclaimableBytes: similarGroups.reduce(0) { $0 + $1.reclaimableBytes })
+    }
+
     func removeContactGroup(_ id: String) {
         contactGroups.removeAll { $0.id == id }
         summaries[.duplicateContacts] = CategorySummary(

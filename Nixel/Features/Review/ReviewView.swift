@@ -174,6 +174,7 @@ struct ReviewView: View {
         guard !removed.isEmpty else { return }
 
         selection.remove(ids: removed)
+        scanner.removeDeleted(ids: removed)
         scanner.refreshStorage()
         summary = CleanupSummary(count: removed.count, bytes: freed)
     }

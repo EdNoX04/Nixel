@@ -20,6 +20,7 @@
 		407BA7BE05C4C7ED252D752B /* ContactModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA6AFB519179672C96E5E35 /* ContactModels.swift */; };
 		40AA6466CA1DD942D09F966C /* CleanupSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8902DB47AF0292520BC05FDF /* CleanupSummaryView.swift */; };
 		4B5BF0555B175BDEAB836717 /* ScanCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FF35F6CBFF8C9D4D95661F /* ScanCoordinator.swift */; };
+		4F2F82EE09E0E61F3BB78201 /* Navigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4388F3C5D3684DD16C913AC8 /* Navigator.swift */; };
 		5256F7F7FF7434A3DEC1C4F9 /* IntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F243E9D96E960E8881385B7F /* IntelligenceService.swift */; };
 		5508D7BA3716F65BECDC145A /* NixelApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C979060BE2405F3C5B86A065 /* NixelApp.swift */; };
 		55AEA8296030E6F116E5BE14 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322DDC3670D50C94CB097423 /* ThumbnailLoader.swift */; };
@@ -58,6 +59,7 @@
 		2EF42D40A2D0D2335285CE54 /* DuplicateContactsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateContactsView.swift; sourceTree = "<group>"; };
 		322DDC3670D50C94CB097423 /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
 		424490F0A6734A292F12B042 /* DeviceStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceStorage.swift; sourceTree = "<group>"; };
+		4388F3C5D3684DD16C913AC8 /* Navigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Navigator.swift; sourceTree = "<group>"; };
 		44FF35F6CBFF8C9D4D95661F /* ScanCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCoordinator.swift; sourceTree = "<group>"; };
 		51199D61941ADC747124F80F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		52F92E166CD956FF5E38FD12 /* Descriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Descriptor.swift; sourceTree = "<group>"; };
@@ -189,6 +191,7 @@
 		79C07C7556B216740DBD68B6 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				4388F3C5D3684DD16C913AC8 /* Navigator.swift */,
 				C979060BE2405F3C5B86A065 /* NixelApp.swift */,
 				51199D61941ADC747124F80F /* RootView.swift */,
 			);
@@ -415,6 +418,7 @@
 				BC96E3A4FB50ED561B9BC123 /* Glass.swift in Sources */,
 				5256F7F7FF7434A3DEC1C4F9 /* IntelligenceService.swift in Sources */,
 				3991C1FA72EDB3761640C82F /* LargeVideosView.swift in Sources */,
+				4F2F82EE09E0E61F3BB78201 /* Navigator.swift in Sources */,
 				83C378DF0554F5B3201979B6 /* NixelAgent.swift in Sources */,
 				5508D7BA3716F65BECDC145A /* NixelApp.swift in Sources */,
 				C1F6B182A46C0AD846E74195 /* PermissionCenter.swift in Sources */,

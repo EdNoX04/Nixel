@@ -13,6 +13,8 @@ struct CleanupSummaryView: View {
     let summary: CleanupSummary
 
     @Environment(ScanCoordinator.self) private var scanner
+    @Environment(Navigator.self) private var navigator
+    @Environment(CleanupSelection.self) private var selection
     @State private var appeared = false
 
     var body: some View {
@@ -48,11 +50,34 @@ struct CleanupSummaryView: View {
         }
         .navigationTitle("Done")
         .navigationBarTitleDisplayMode(.inline)
+        // Going "back" from here would land on a review screen listing items that are
+        // already gone, so the only exit is forward, to the dashboard.
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") { finish() }
+                    .font(.body.weight(.semibold))
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button(action: finish) {
+                Text("Back to Nixel")
+            }
+            .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo))
+            .padding(.horizontal, Theme.Space.lg)
+            .padding(.bottom, Theme.Space.sm)
+        }
         .onAppear {
             appeared = true
             scanner.refreshStorage()
         }
+    }
+
+    /// Clears what was just removed and returns to the dashboard.
+    private func finish() {
+        selection.clearAll()
+        scanner.refreshStorage()
+        navigator.popToRoot()
     }
 
     private var recentlyDeletedCard: some View {

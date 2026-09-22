@@ -6,9 +6,10 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var scanner = ScanCoordinator()
     @State private var selection = CleanupSelection()
+    @State private var navigator = Navigator()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigator.path) {
             DashboardView()
         }
         // These must sit on the stack, not on DashboardView: destinations pushed via
@@ -16,6 +17,7 @@ struct RootView: View {
         // and a missing @Environment object is a hard crash, not a soft failure.
         .environment(scanner)
         .environment(selection)
+        .environment(navigator)
         .tint(Theme.indigo)
         .onChange(of: scenePhase) { _, phase in
             // Permissions can change while we are backgrounded (Settings, or the limited
