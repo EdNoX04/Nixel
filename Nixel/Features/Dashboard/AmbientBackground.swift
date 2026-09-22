@@ -26,6 +26,7 @@ struct AmbientBackground: View {
     var isActive: Bool = true
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var clock = AnimationClock()
 
     private var tints: [Color] { [Theme.indigo, Theme.teal, Theme.success] }
 
@@ -38,7 +39,7 @@ struct AmbientBackground: View {
 
     var body: some View {
         TimelineView(.animation(paused: !isActive)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+            let t = clock.time(at: timeline.date)
             let rate = isScanning ? 2.3 : 1.0
             let lift = isScanning ? 1.4 : 1.0
 
@@ -56,6 +57,7 @@ struct AmbientBackground: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
+        .onChange(of: isActive) { _, active in clock.setActive(active) }
     }
 
     // MARK: Mesh

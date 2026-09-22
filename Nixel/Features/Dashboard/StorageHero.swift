@@ -29,7 +29,7 @@ struct StorageHero: View {
 
     var body: some View {
         TimelineView(.animation(paused: !isActive)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+            let t = clock.time(at: timeline.date)
 
             ZStack {
                 aura(t)
@@ -40,11 +40,13 @@ struct StorageHero: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .onChange(of: isActive) { _, active in clock.setActive(active) }
     }
 
     // MARK: Ambient glow
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var clock = AnimationClock()
 
     private func aura(_ t: TimeInterval) -> some View {
         // Breathing: slow when idle, quicker and stronger while working.

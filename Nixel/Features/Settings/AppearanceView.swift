@@ -48,6 +48,14 @@ struct AppearanceView: View {
 
                 Section {
                     preview
+                        // Palette colours are dynamic UIColors that SwiftUI's diff treats as
+                        // unchanged, so an in-place re-render leaves the old palette showing.
+                        // The main tree rebuilds for this reason; the sheet sits outside that
+                        // rebuild so it can stay open, which means the preview needs its own.
+                        // It holds no state, so rebuilding it costs nothing.
+                        .id(theme.palette)
+                        .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.3), value: theme.palette)
                 } header: {
                     Text("Preview")
                 }

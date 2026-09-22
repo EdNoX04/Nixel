@@ -49,7 +49,10 @@ final class GridThumbnailProvider {
 
     func image(for asset: PHAsset, side: CGFloat, completion: @escaping (UIImage?) -> Void) -> PHImageRequestID {
         let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
+        // Not `.opportunistic`: that delivers a blurry placeholder and then the sharp image,
+        // so every tile visibly popped as you scrolled or switched tabs. One callback at the
+        // requested size, faded in, reads as calm instead.
+        options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = true
         let scale = UIScreen.main.scale

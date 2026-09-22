@@ -10,6 +10,11 @@ import SwiftUI
 @MainActor
 final class Navigator {
     var selectedTab: TabItem = .storage
+
+    /// Whether the Appearance sheet is up. Lives here, above the view tree that a palette
+    /// change rebuilds — when it lived in the storage tab, choosing a palette reset it and
+    /// slammed the sheet shut the moment you picked something.
+    var showAppearance = false
     private var paths: [TabItem: NavigationPath] = [:]
 
     func binding(for tab: TabItem) -> Binding<NavigationPath> {

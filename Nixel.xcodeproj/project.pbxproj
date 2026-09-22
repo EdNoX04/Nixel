@@ -42,6 +42,7 @@
 		6FFCDEAEC7936740AAD0D1E2 /* DuplicateContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF42D40A2D0D2335285CE54 /* DuplicateContactsView.swift */; };
 		7A9967A4778EF8B9FE336A2B /* NotchedMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E91AD5664394BC0BF6EE2BA /* NotchedMark.swift */; };
 		7D784B848572FF351CA73DB5 /* StorageHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C617B6DC1EC91601F839641 /* StorageHero.swift */; };
+		820F6765C3047F5CF087702A /* AnimationClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00EA1C7279E08D490F2D743 /* AnimationClock.swift */; };
 		83C378DF0554F5B3201979B6 /* NixelAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64A347EDFFAC981D3AA3863 /* NixelAgent.swift */; };
 		85EFDFFD8772B4180AAADAA3 /* CleanupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A715EAC578B42D04CDDF39B /* CleanupModels.swift */; };
 		8D8885FF24FB4B3F2EC1F4B2 /* StorageWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9EBD3BAD6FBB499AFCCF3D /* StorageWidget.swift */; };
@@ -157,6 +158,7 @@
 		D87F953E18A9983D587DEF45 /* DemoLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoLibrary.swift; sourceTree = "<group>"; };
 		DAA520611C3772C0D64C372E /* PermissionPrimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionPrimer.swift; sourceTree = "<group>"; };
 		DCA6AFB519179672C96E5E35 /* ContactModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactModels.swift; sourceTree = "<group>"; };
+		E00EA1C7279E08D490F2D743 /* AnimationClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationClock.swift; sourceTree = "<group>"; };
 		E0AF550DD26D63E92D447628 /* Sharpness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sharpness.swift; sourceTree = "<group>"; };
 		E128E399673432D9595F4D32 /* SimilarityEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimilarityEngine.swift; sourceTree = "<group>"; };
 		E5D72F424621A0BBE7ABC95C /* Nixel.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Nixel.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -302,6 +304,7 @@
 		7769AA6EE6FC3DEA472A2D27 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				E00EA1C7279E08D490F2D743 /* AnimationClock.swift */,
 				8238B5121A564E75B4F02A9B /* AppPalette.swift */,
 				D71FBA59F375C6E1E511AB58 /* Components.swift */,
 				F482D96B25A1CFF0CDED0606 /* Glass.swift */,
@@ -574,6 +577,7 @@
 				6AD0987FEF561A51F06D7958 /* AgentFindingCard.swift in Sources */,
 				E18B677BD6297AD42B31FA20 /* AgentSettingsView.swift in Sources */,
 				5C0B88E05CB30009C698EED7 /* AmbientBackground.swift in Sources */,
+				820F6765C3047F5CF087702A /* AnimationClock.swift in Sources */,
 				2388E8C391E8645127206D24 /* AppPalette.swift in Sources */,
 				2B87927FCFAF1883618A4E05 /* AppearanceView.swift in Sources */,
 				ACB57FB0FCFABD19BAA8BA57 /* AssetThumbnailView.swift in Sources */,

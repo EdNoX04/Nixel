@@ -10,12 +10,12 @@ struct StorageTabView: View {
     @Environment(PermissionCenter.self) private var permissions
     @Environment(ScanCoordinator.self) private var scanner
     @Environment(Navigator.self) private var navigator
-    @State private var showAppearance = false
     @State private var showPrimer = false
 
     /// A TabView keeps every tab alive, so the animations have to be told when they are
     /// off screen or they keep burning frames three tabs away.
-    private var isVisible: Bool { navigator.selectedTab == .storage }
+    @Environment(\.scenePhase) private var scenePhase
+    private var isVisible: Bool { navigator.selectedTab == .storage && scenePhase == .active }
 
     var body: some View {
         ZStack {
@@ -62,7 +62,7 @@ struct StorageTabView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { showAppearance = true } label: { Image(systemName: "paintpalette") }
+                Button { navigator.showAppearance = true } label: { Image(systemName: "paintpalette") }
                     .accessibilityLabel("Appearance")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -70,7 +70,6 @@ struct StorageTabView: View {
                     .accessibilityLabel("Daily agent")
             }
         }
-        .sheet(isPresented: $showAppearance) { AppearanceView() }
         .navigationDestination(for: CleanupCategory.self) { CategoryDetailView(category: $0) }
         .sheet(isPresented: $showPrimer) {
             PermissionPrimer(

@@ -23,8 +23,7 @@ struct AssetThumbnailView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-            } else {
-                ProgressView().controlSize(.small)
+                    .transition(.opacity)
             }
         }
         .frame(width: side, height: side)
@@ -48,7 +47,8 @@ struct AssetThumbnailView: View {
     private func load() {
         guard image == nil else { return }
         requestID = GridThumbnailProvider.shared.image(for: asset.phAsset, side: side) { result in
-            if let result { self.image = result }
+            guard let result else { return }
+            withAnimation(.easeOut(duration: 0.22)) { self.image = result }
         }
     }
 

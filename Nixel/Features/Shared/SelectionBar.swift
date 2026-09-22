@@ -58,7 +58,13 @@ struct GridSectionHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
+                Text(title)
+                    .font(.headline)
+                    .lineLimit(1)
+                    // The AI label arrives after the group is on screen; fade it in rather
+                    // than letting the text jump while the user is scrolling.
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.35), value: title)
                 if let subtitle {
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }

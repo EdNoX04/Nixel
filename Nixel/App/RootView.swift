@@ -11,20 +11,27 @@ struct RootView: View {
     @State private var theme = ThemeStore()
 
     var body: some View {
-        Group {
-            if account.hasSeenWelcome {
-                MainTabView()
-                    .transition(.opacity)
-            } else {
-                WelcomeView()
-                    .transition(.opacity)
+        @Bindable var navigator = navigator
+
+        ZStack {
+            Group {
+                if account.hasSeenWelcome {
+                    MainTabView()
+                        .transition(.opacity)
+                } else {
+                    WelcomeView()
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.35), value: account.hasSeenWelcome)
+            // Colours resolve through static palette lookups, so a palette change rebuilds
+            // the tree to take effect. Tab selection and navigation paths live in Navigator,
+            // outside this boundary, so they survive; the rebuild cross-fades rather than
+            // flashing.
+            .id(theme.palette)
+            .transition(.opacity)
         }
-        .animation(.easeInOut(duration: 0.35), value: account.hasSeenWelcome)
-        // Colours resolve through static palette lookups, so a palette change has to
-        // rebuild the tree to take effect. The picker is a sheet over the dashboard —
-        // already the root — so nothing navigational is lost.
-        .id(theme.palette)
+        .animation(.easeInOut(duration: 0.4), value: theme.palette)
         .preferredColorScheme(theme.mode.colorScheme)
         // These must sit on the stack, not on DashboardView: destinations pushed via
         // `navigationDestination` do not inherit environment applied inside the stack,
@@ -35,6 +42,13 @@ struct RootView: View {
         .environment(account)
         .environment(theme)
         .tint(Theme.indigo)
+        // Presented from here, outside the rebuilt tree, so it stays open while the user
+        // tries palettes one after another.
+        .sheet(isPresented: $navigator.showAppearance) {
+            AppearanceView()
+                .environment(theme)
+                .preferredColorScheme(theme.mode.colorScheme)
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
