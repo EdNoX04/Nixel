@@ -13,7 +13,7 @@ final class ScanCoordinator {
 
     // MARK: Results
 
-    var storage: StorageSnapshot = DeviceStorage.snapshot()
+    var storage: StorageSnapshot = .empty
     var summaries: [CleanupCategory: CategorySummary] = [:]
 
     var similarGroups: [PhotoGroup] = []
@@ -60,6 +60,7 @@ final class ScanCoordinator {
         for category in CleanupCategory.allCases {
             summaries[category] = CategorySummary()
         }
+        refreshStorage()
     }
 
     // MARK: Derived
@@ -73,8 +74,8 @@ final class ScanCoordinator {
     /// than counted as zero, which also stopped it topping out at 80%.
     var overallProgress: Double {
         let weights: [CleanupCategory: Double] = [
-            .screenshots: 0.05, .largeVideos: 0.05, .similarPhotos: 0.80,
-            .blurryPhotos: 0.05, .duplicateContacts: 0.05
+            .screenshots: 0.02, .largeVideos: 0.02, .similarPhotos: 0.90,
+            .blurryPhotos: 0.03, .duplicateContacts: 0.03
         ]
         var done = 0.0, total = 0.0
         for (category, weight) in weights {
@@ -240,8 +241,45 @@ final class ScanCoordinator {
         for category in CleanupCategory.allCases { summaries[category] = CategorySummary() }
     }
 
+    /// Reads volume capacity off the main thread.
+    ///
+    /// "Available for important usage" makes iOS work out how much it could purge, which is
+    /// instant in the Simulator and can take seconds on a real phone. It used to run on the
+    /// main thread at launch and every time the app came back to the foreground — so waking
+    /// the phone froze the UI while iOS did its sums.
     func refreshStorage() {
-        storage = DeviceStorage.snapshot()
+        trace("storage: refresh requested")
+        Task.detached(priority: .utility) { [weak self] in
+            let snapshot = DeviceStorage.snapshot()
+            await MainActor.run {
+                self?.storage = snapshot
+                trace("storage: refreshed")
+            }
+        }
+    }
+
+    private var resumeAfterBackground = false
+
+    /// The phone is locking or the app is leaving the screen.
+    ///
+    /// iOS suspends the process shortly after this, and a scan left running across that
+    /// suspension resumes with Vision and model requests half-finished on the neural
+    /// engine — the state behind "the app hangs after the phone locks". So stop cleanly
+    /// instead: the descriptor cache is saved on cancellation, and every photo already
+    /// analysed is skipped when the scan picks up again.
+    func handleBackground() {
+        guard isScanning else { return }
+        trace("background: pausing scan")
+        resumeAfterBackground = true
+        cancelScan()
+    }
+
+    func handleForeground(access: PhotoAccess) {
+        refreshStorage()
+        guard resumeAfterBackground else { return }
+        resumeAfterBackground = false
+        trace("foreground: resuming scan")
+        scanPhotos(access: access, restart: true)
     }
 
     func cancelScan() {
@@ -253,7 +291,14 @@ final class ScanCoordinator {
         }
     }
 
-    func scanPhotos(access: PhotoAccess) {
+    /// Starts a scan. A request that arrives while one is already running is ignored unless
+    /// `restart` is set: returning to the storage tab re-runs its `.task`, and that used to
+    /// cancel the scan in progress and start over from 0% on every visit.
+    func scanPhotos(access: PhotoAccess, restart: Bool = false) {
+        if isScanning && !restart {
+            trace("scan request ignored: already scanning")
+            return
+        }
         guard access.canScan else {
             let reason = access == .denied || access == .restricted
                 ? "Photo access is off"
@@ -268,6 +313,7 @@ final class ScanCoordinator {
         for category in photoCategories { summaries[category]?.state = .scanning(0) }
 
         let started = Date()
+        trace("scan requested, access=\(access)")
         scanTask = Task { [weak self] in
             guard let self else { return }
             await self.runPhotoScan()
@@ -280,6 +326,7 @@ final class ScanCoordinator {
                 try? await Task.sleep(nanoseconds: UInt64((1.4 - elapsed) * 1_000_000_000))
             }
 
+            trace("scan: finished in \(String(format: "%.1f", elapsed))s")
             self.isScanning = false
             self.lastScanDate = Date()
             self.refreshStorage()
@@ -298,10 +345,13 @@ final class ScanCoordinator {
     }
 
     private func runPhotoScan() async {
+        trace("runPhotoScan: start")
         // --- 1. Screenshots and videos: cheap, metadata-driven, show them first. ---
+        trace("screenshots: fetching")
         let screenshotAssets = await Task.detached(priority: .userInitiated) {
             PhotoFetch.screenshots()
         }.value
+        trace("screenshots: fetched \(screenshotAssets.count), sizing")
 
         let sized = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
             screenshotAssets.map { asset in
@@ -311,6 +361,7 @@ final class ScanCoordinator {
             }
         }.value
 
+        trace("screenshots: sized")
         guard !Task.isCancelled else { return }
         screenshots = sized
         summaries[.screenshots] = CategorySummary(
@@ -320,7 +371,10 @@ final class ScanCoordinator {
 
         // On-device triage of screenshots. Runs after the list is already on screen so
         // the user never waits on the model to see their screenshots.
-        if IntelligenceService.shared.availability.isAvailable, !sized.isEmpty {
+        trace("intelligence: checking availability")
+        let intelligenceReady = await IntelligenceService.shared.currentAvailability().isAvailable
+        trace("intelligence: available=\(intelligenceReady)")
+        if intelligenceReady, !sized.isEmpty {
             isTriaging = true
             Task { [weak self, triage] in
                 await triage.triage(sized) { _ in }
@@ -332,6 +386,7 @@ final class ScanCoordinator {
             }
         }
 
+        trace("videos: fetching + sizing")
         let videoAssets = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
             PhotoFetch.videos()
                 .map { asset in
@@ -350,9 +405,11 @@ final class ScanCoordinator {
             reclaimableBytes: videoAssets.reduce(0) { $0 + $1.bytes })
 
         // --- 2. Similar photos: the expensive pass. ---
+        trace("videos: done \(largeVideos.count); photos: fetching")
         let photoAssets = await Task.detached(priority: .userInitiated) {
             PhotoFetch.allPhotos().map(PhotoAsset.init)
         }.value
+        trace("photos: fetched \(photoAssets.count)")
 
         guard !Task.isCancelled else { return }
         photosAnalysed = photoAssets.count
@@ -365,7 +422,9 @@ final class ScanCoordinator {
 
         guard !Task.isCancelled else { return }
 
+        trace("prepare: done; grouping")
         var groups = await engine.group(photoAssets)
+        trace("group: \(groups.count) groups")
 
         // Resolve byte sizes only for photos inside a group — that is the only place the
         // number is shown, and it saves thousands of resource lookups on a big library.
@@ -389,6 +448,7 @@ final class ScanCoordinator {
             itemCount: groups.reduce(0) { $0 + $1.others.count },
             reclaimableBytes: groups.reduce(0) { $0 + $1.reclaimableBytes })
 
+        trace("sizing grouped photos: done")
         // --- 3. People, then blurry. ---
         let people = await engine.peopleCounts(for: photoAssets)
         screenshots = screenshots.map { var a = $0; a.peopleCount = people[$0.id]; return a }
@@ -420,6 +480,7 @@ final class ScanCoordinator {
             }
         }.value
 
+        trace("blurry: \(blurrySized.count)")
         guard !Task.isCancelled else { return }
         blurryPhotos = blurrySized
         summaries[.blurryPhotos] = CategorySummary(

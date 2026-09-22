@@ -41,6 +41,7 @@ actor ScreenshotTriage {
         progress: @Sendable @escaping (Double) -> Void
     ) async {
         let pending = assets.filter { cache[$0.id] == nil }.prefix(limit)
+        trace("triage: \(pending.count) screenshots to classify")
         guard !pending.isEmpty else {
             progress(1)
             return

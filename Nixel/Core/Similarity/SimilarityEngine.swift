@@ -53,6 +53,7 @@ actor SimilarityEngine {
     func prepare(_ assets: [PhotoAsset], progress: @Sendable @escaping (Double) -> Void) async {
         let missing = assets.filter { store.record(for: $0.id, modified: $0.phAsset.modificationDate) == nil }
 
+        trace("prepare: \(assets.count) assets, \(missing.count) need analysis")
         guard !missing.isEmpty else {
             progress(1)
             return
@@ -91,6 +92,7 @@ actor SimilarityEngine {
                 // finished, so backgrounding the app partway through a big library threw
                 // every analysed photo away.
                 if done % 150 == 0 { store.save() }
+                if done == 1 || done % 25 == 0 { trace("prepare: \(done)/\(missing.count) engine=\(descriptor?.kind.rawValue ?? 0)") }
                 if Task.isCancelled { break }
                 schedule()
             }

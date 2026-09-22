@@ -153,8 +153,10 @@ struct StorageHero: View {
                     .foregroundStyle(Theme.indigo)
                 Text("\(Int(progress * 100))%")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText())
+                    .contentTransition(.numericText(value: progress))
                     .monospacedDigit()
+                    // Counts up rather than jumping between the values the scan reports.
+                    .animation(.easeOut(duration: 0.45), value: Int(progress * 100))
             } else {
                 Text(Bytes.string(snapshot.available))
                     .font(.system(size: 40, weight: .bold, design: .rounded))

@@ -8,6 +8,11 @@ struct NixelApp: App {
         // Background task handlers must be registered before launch finishes,
         // otherwise BGTaskScheduler traps.
         NixelAgent.shared.register()
+        #if DEBUG
+        Trace.reset()
+        trace("app launched")
+        MainThreadWatchdog.shared.start()
+        #endif
     }
 
     var body: some Scene {

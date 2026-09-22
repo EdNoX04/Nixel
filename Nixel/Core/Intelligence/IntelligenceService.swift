@@ -71,40 +71,59 @@ final class IntelligenceService {
 
     static let shared = IntelligenceService()
 
-    private(set) var availability: IntelligenceAvailability = .osTooOld
-
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    private var session: LanguageModelSession? {
-        get { _session as? LanguageModelSession }
-        set { _session = newValue }
-    }
-    private var _session: AnyObject?
-    #endif
+    fileprivate(set) var availability: IntelligenceAvailability = .osTooOld
 
     init() {
+        trace("IntelligenceService: init")
         refreshAvailability()
     }
 
+    /// Resolves availability off the main thread and publishes it.
+    ///
+    /// Asking the system model whether it is ready can touch its assets, which on a real
+    /// phone — particularly just after it wakes — is not something to do on the thread that
+    /// draws the UI. Until it resolves, `availability` reads as "not ready", which every
+    /// caller already handles.
     func refreshAvailability() {
         #if canImport(FoundationModels)
         guard #available(iOS 26.0, *) else {
             availability = .osTooOld
             return
         }
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            availability = .available
-        case .unavailable(let reason):
-            switch reason {
-            case .deviceNotEligible:          availability = .deviceNotEligible
-            case .appleIntelligenceNotEnabled: availability = .notEnabled
-            case .modelNotReady:              availability = .modelNotReady
-            @unknown default:                 availability = .modelNotReady
+        if availability == .osTooOld { availability = .modelNotReady }
+        Task.detached(priority: .utility) {
+            let resolved = Self.resolveAvailability()
+            await MainActor.run {
+                IntelligenceService.shared.availability = resolved
+                trace("IntelligenceService: availability \(resolved)")
             }
         }
         #else
         availability = .osTooOld
+        #endif
+    }
+
+    /// The same answer, computed where the caller is rather than on the main thread.
+    nonisolated func currentAvailability() async -> IntelligenceAvailability {
+        await Task.detached(priority: .utility) { Self.resolveAvailability() }.value
+    }
+
+    nonisolated static func resolveAvailability() -> IntelligenceAvailability {
+        #if canImport(FoundationModels)
+        guard #available(iOS 26.0, *) else { return .osTooOld }
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return .available
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible:           return .deviceNotEligible
+            case .appleIntelligenceNotEnabled: return .notEnabled
+            case .modelNotReady:               return .modelNotReady
+            @unknown default:                  return .modelNotReady
+            }
+        }
+        #else
+        return .osTooOld
         #endif
     }
 
@@ -115,20 +134,15 @@ final class IntelligenceService {
     /// The model returns a *typed* value via `@Generable` rather than free text, so there
     /// is no parsing step that can silently fail — an answer either conforms to the schema
     /// or it throws.
-    func triage(text: String) async -> ScreenshotVerdict? {
+    nonisolated func triage(text: String) async -> ScreenshotVerdict? {
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *), availability.isAvailable else { return nil }
+        guard #available(iOS 26.0, *), await availability.isAvailable else { return nil }
 
         let trimmed = String(text.prefix(600))
         guard !trimmed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         do {
-            let session = try activeSession()
-            let response = try await session.respond(
-                to: "Screenshot text:\n\(trimmed)",
-                generating: GeneratedVerdict.self
-            )
-            let content = response.content
+            let content = try await ModelRunner.shared.classify(trimmed)
             let kind = ScreenshotKind(rawValue: content.kind.rawValue) ?? .other
             // Safety override: never mark anything that could cost the user money or
             // access as safe to delete, whatever the model concluded.
@@ -153,7 +167,7 @@ final class IntelligenceService {
     /// Used when the model is unavailable or refuses. It only ever votes for the
     /// *cautious* answer: it can mark something sensitive, never safe to delete. Missing a
     /// meme costs nothing; letting a boarding pass through as "safe" costs a flight.
-    static func keywordVerdict(for text: String) -> ScreenshotVerdict? {
+    nonisolated static func keywordVerdict(for text: String) -> ScreenshotVerdict? {
         let haystack = text.lowercased()
         func any(_ needles: [String]) -> Bool { needles.contains { haystack.contains($0) } }
 
@@ -182,11 +196,11 @@ final class IntelligenceService {
     /// by deleting* — exactly inverted, on the one screen where being wrong about a number
     /// destroys trust. So the result is validated before use and a deterministic sentence
     /// is substituted if it looks off.
-    func summarise(duplicates: Int, screenshots: Int, videos: Int, bytes: Int64) async -> String? {
+    nonisolated func summarise(duplicates: Int, screenshots: Int, videos: Int, bytes: Int64) async -> String? {
         let fallback = Self.plainSummary(duplicates: duplicates, screenshots: screenshots,
                                          videos: videos, bytes: bytes)
         #if canImport(FoundationModels)
-        guard #available(iOS 26.0, *), availability.isAvailable else { return fallback }
+        guard #available(iOS 26.0, *), await availability.isAvailable else { return fallback }
 
         let prompt = """
         Write one friendly sentence, 16 words or fewer, for a phone storage-cleaning app.
@@ -196,9 +210,8 @@ final class IntelligenceService {
         """
 
         do {
-            let session = try activeSession()
-            let response = try await session.respond(to: prompt)
-            let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = try await ModelRunner.shared.write(prompt)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             return Self.isTrustworthy(text, bytes: bytes) ? text : fallback
         } catch {
             return fallback
@@ -209,7 +222,7 @@ final class IntelligenceService {
     }
 
     /// Rejects a generated sentence that inverts the meaning or invents figures.
-    static func isTrustworthy(_ text: String, bytes: Int64) -> Bool {
+    nonisolated static func isTrustworthy(_ text: String, bytes: Int64) -> Bool {
         guard !text.isEmpty, text.count <= 160 else { return false }
         let lower = text.lowercased()
 
@@ -235,7 +248,7 @@ final class IntelligenceService {
     }
 
     /// The sentence we can always stand behind.
-    static func plainSummary(duplicates: Int, screenshots: Int, videos: Int, bytes: Int64) -> String {
+    nonisolated static func plainSummary(duplicates: Int, screenshots: Int, videos: Int, bytes: Int64) -> String {
         let total = duplicates + screenshots + videos
         guard total > 0 else { return "Nothing to clean up right now." }
         var parts: [String] = []
@@ -248,22 +261,6 @@ final class IntelligenceService {
     // MARK: Session
 
     #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    private func activeSession() throws -> LanguageModelSession {
-        if let existing = session { return existing }
-        let created = LanguageModelSession(
-            model: SystemLanguageModel.default,
-            instructions: """
-            You classify iPhone screenshots so a storage-cleaning app can suggest which are \
-            safe to delete. You are cautious: anything that looks like proof of purchase, \
-            travel, identity, a verification code or a password is never safe to delete. \
-            Memes, social posts and app UI screenshots usually are. Keep reasons under six words.
-            """
-        )
-        session = created
-        return created
-    }
-
     // Not `private`: the @Generable macro expands to code that must see these.
     @available(iOS 26.0, *)
     @Generable
@@ -283,3 +280,50 @@ final class IntelligenceService {
     }
     #endif
 }
+
+
+#if canImport(FoundationModels)
+/// Owns the language model session, off the main thread.
+///
+/// `IntelligenceService` is main-actor bound because views read its availability. The
+/// session used to live there too, so creating it — and every request made through it —
+/// was scheduled on the thread that draws the UI. It now lives in its own actor: requests
+/// are still serialised, which a session requires, but never at the UI's expense.
+@available(iOS 26.0, *)
+actor ModelRunner {
+    static let shared = ModelRunner()
+
+    private var session: LanguageModelSession?
+
+    private func activeSession() -> LanguageModelSession {
+        if let existing = session { return existing }
+        trace("ModelRunner: creating session")
+        let created = LanguageModelSession(
+            model: SystemLanguageModel.default,
+            instructions: """
+            You classify iPhone screenshots so a storage-cleaning app can suggest which are \
+            safe to delete. You are cautious: anything that looks like proof of purchase, \
+            travel, identity, a verification code or a password is never safe to delete. \
+            Memes, social posts and app UI screenshots usually are. Keep reasons under six words.
+            """
+        )
+        session = created
+        return created
+    }
+
+    func classify(_ text: String) async throws -> IntelligenceService.GeneratedVerdict {
+        let response = try await activeSession().respond(
+            to: "Screenshot text:\n\(text)",
+            generating: IntelligenceService.GeneratedVerdict.self
+        )
+        return response.content
+    }
+
+    func write(_ prompt: String) async throws -> String {
+        try await activeSession().respond(to: prompt).content
+    }
+
+    /// Sessions do not survive the app being suspended reliably; start fresh on return.
+    func reset() { session = nil }
+}
+#endif

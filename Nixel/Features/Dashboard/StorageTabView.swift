@@ -88,6 +88,7 @@ struct StorageTabView: View {
             permissions.refresh()
             if scanner.hasConsentedToScan,
                permissions.photos.canScan,
+               !scanner.isScanning,
                scanner.lastScanDate == nil {
                 scanner.scanPhotos(access: permissions.photos)
             }
@@ -207,7 +208,7 @@ struct StorageTabView: View {
         }
         guard permissions.photos.canScan else { return }
         scanner.hasConsentedToScan = true
-        scanner.scanPhotos(access: permissions.photos)
+        scanner.scanPhotos(access: permissions.photos, restart: true)
     }
 
     private var footer: some View {

@@ -36,11 +36,22 @@ struct RootView: View {
         .environment(theme)
         .tint(Theme.indigo)
         .onChange(of: scenePhase) { _, phase in
-            // Permissions can change while we are backgrounded (Settings, or the limited
-            // library picker), so re-read them rather than trusting a stale value.
-            if phase == .active {
+            switch phase {
+            case .active:
+                // Permissions can change while we are away (Settings, or the limited
+                // library picker), so re-read them rather than trusting a stale value.
                 permissions.refresh()
-                scanner.refreshStorage()
+                #if DEBUG
+                MainThreadWatchdog.shared.resetClock()
+                #endif
+                scanner.handleForeground(access: permissions.photos)
+            case .background:
+                scanner.handleBackground()
+                if #available(iOS 26.0, *) {
+                    Task { await ModelRunner.shared.reset() }
+                }
+            default:
+                break
             }
         }
     }

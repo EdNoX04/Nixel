@@ -192,7 +192,7 @@ struct AgentSettingsView: View {
             agent.seedMessage = "Imported \(count) items. Rescanning…"
             permissions.refresh()
             scanner.hasConsentedToScan = true
-            scanner.scanPhotos(access: permissions.photos)
+            scanner.scanPhotos(access: permissions.photos, restart: true)
         } catch {
             agent.seedMessage = "Import failed: \(error.localizedDescription)"
         }
