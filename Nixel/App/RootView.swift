@@ -13,10 +13,8 @@ struct RootView: View {
     var body: some View {
         Group {
             if account.hasSeenWelcome {
-                NavigationStack(path: $navigator.path) {
-                    DashboardView()
-                }
-                .transition(.opacity)
+                MainTabView()
+                    .transition(.opacity)
             } else {
                 WelcomeView()
                     .transition(.opacity)

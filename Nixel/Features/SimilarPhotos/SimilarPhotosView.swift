@@ -9,6 +9,7 @@ struct SimilarPhotosView: View {
     let groups: [PhotoGroup]
 
     @Environment(CleanupSelection.self) private var selection
+    @Environment(ScanCoordinator.self) private var scanner
     @State private var showReview = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
@@ -21,8 +22,17 @@ struct SimilarPhotosView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Theme.Space.xl) {
+                        if scanner.summary(.blurryPhotos).hasFindings {
+                            NavigationLink(value: CleanupCategory.blurryPhotos) {
+                                CategoryCard(category: .blurryPhotos,
+                                             summary: scanner.summary(.blurryPhotos))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
                         ForEach(groups) { group in
                             groupSection(group)
+                                .task { scanner.describeGroup(group) }
                         }
                     }
                     .padding(.horizontal, Theme.Space.lg)
@@ -47,14 +57,15 @@ struct SimilarPhotosView: View {
             }
         }
         .navigationDestination(isPresented: $showReview) { ReviewView() }
+        .navigationDestination(for: CleanupCategory.self) { CategoryDetailView(category: $0) }
     }
 
     @ViewBuilder
     private func groupSection(_ group: PhotoGroup) -> some View {
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             GridSectionHeader(
-                title: "\(group.assets.count) similar",
-                subtitle: "Keep 1 · free \(Bytes.string(group.reclaimableBytes))",
+                title: scanner.groupLabels[group.id] ?? "\(group.assets.count) similar",
+                subtitle: "\(group.assets.count) shots · keep 1 · free \(Bytes.string(group.reclaimableBytes))",
                 allSelected: group.others.allSatisfy { selection.isSelected($0.id, in: .similarPhotos) },
                 onToggleAll: { toggleGroup(group) }
             )

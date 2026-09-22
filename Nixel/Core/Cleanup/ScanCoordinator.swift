@@ -34,6 +34,10 @@ final class ScanCoordinator {
     private let engine = SimilarityEngine()
     private let contactScanner = ContactScanner()
     let triage = ScreenshotTriage()
+    let insights = PhotoInsight()
+
+    /// AI-written descriptions of similar-photo groups, keyed by group id.
+    var groupLabels: [String: String] = [:]
     private var scanTask: Task<Void, Never>?
 
     /// Verdicts from on-device intelligence, keyed by asset id.
@@ -47,6 +51,20 @@ final class ScanCoordinator {
     }
 
     // MARK: Derived
+
+    /// Rough overall progress, for the hero readout while scanning.
+    var overallProgress: Double {
+        let states = CleanupCategory.allCases.compactMap { summaries[$0]?.state }
+        guard !states.isEmpty else { return 0 }
+        let total = states.reduce(0.0) { partial, state in
+            switch state {
+            case .scanning(let p): return partial + p
+            case .ready, .blocked: return partial + 1
+            case .idle: return partial
+            }
+        }
+        return min(1, total / Double(states.count))
+    }
 
     /// Total space the current findings could free.
     var totalReclaimable: Int64 {
@@ -92,6 +110,18 @@ final class ScanCoordinator {
     /// Drops assets that have just been deleted from the in-memory results, so the user
     /// never sees a thumbnail for something that is already gone. Cheaper and far less
     /// jarring than re-running the whole scan after every cleanup.
+    /// Asks the on-device model what a group shows. Lazy and cached: called as groups
+    /// scroll into view rather than for the whole library during the scan.
+    func describeGroup(_ group: PhotoGroup) {
+        guard groupLabels[group.id] == nil,
+              IntelligenceService.shared.availability.isAvailable else { return }
+        Task { [insights] in
+            if let insight = await insights.describe(group: group) {
+                await MainActor.run { self.groupLabels[group.id] = insight.label }
+            }
+        }
+    }
+
     func removeDeleted(ids: Set<String>) {
         guard !ids.isEmpty else { return }
 

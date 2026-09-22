@@ -30,6 +30,8 @@ struct PaletteSpec {
 /// The palettes the user can choose between.
 enum AppPalette: String, CaseIterable, Identifiable, Codable {
     case forest
+    case ivory
+    case burgundy
     case sageGold
     case slate
     case nixel
@@ -39,6 +41,8 @@ enum AppPalette: String, CaseIterable, Identifiable, Codable {
     var title: String {
         switch self {
         case .forest:   return "Forest"
+        case .ivory:    return "Ivory"
+        case .burgundy: return "Burgundy"
         case .sageGold: return "Sage & Gold"
         case .slate:    return "Slate"
         case .nixel:    return "Original"
@@ -48,6 +52,8 @@ enum AppPalette: String, CaseIterable, Identifiable, Codable {
     var subtitle: String {
         switch self {
         case .forest:   return "Deep greens"
+        case .ivory:    return "Warm beige and bronze"
+        case .burgundy: return "Deep wine and rose"
         case .sageGold: return "Sage and warm gold"
         case .slate:    return "Navy and cool blues"
         case .nixel:    return "Violet and teal"
@@ -78,6 +84,38 @@ enum AppPalette: String, CaseIterable, Identifiable, Codable {
                 success:     (0x2E7D5B, 0x7FD1A8),
                 warning:     (0xA87527, 0xE8B45E),
                 welcome:     [0x051F20, 0x163832, 0x235347]
+            )
+
+        // Warm neutral: parchment through bronze to a near-black espresso.
+        case .ivory:
+            return PaletteSpec(
+                primary:     (0x8A6F47, 0xD9C2A0),
+                secondary:   (0x3E3428, 0xEFE3D2),
+                similar:     (0x8A6F47, 0xD9C2A0),
+                screenshots: (0xB07C2B, 0xE8B96B),
+                videos:      (0x9C5A44, 0xE0977C),
+                contacts:    (0x5F6F63, 0xA9BFAE),
+                blurry:      (0x8A8175, 0xBDB3A4),
+                danger:      (0xA8453A, 0xE8887C),
+                success:     (0x4F7A52, 0x9BC79C),
+                warning:     (0xB07C2B, 0xE8B96B),
+                welcome:     [0x3E3428, 0x6B5942, 0xB39B74]
+            )
+
+        // Deep wine through rose, with a muted gold for contrast.
+        case .burgundy:
+            return PaletteSpec(
+                primary:     (0x7A203A, 0xD98BA0),
+                secondary:   (0x4A1220, 0xF0C6D2),
+                similar:     (0x7A203A, 0xD98BA0),
+                screenshots: (0xA87A2A, 0xE6BB6C),
+                videos:      (0x9B3B4E, 0xE08A9B),
+                contacts:    (0x4C5B7A, 0xA3B4D6),
+                blurry:      (0x7E6B72, 0xB7A7AE),
+                danger:      (0xA5303A, 0xEC7F88),
+                success:     (0x3F7A5C, 0x8CC9A9),
+                warning:     (0xA87A2A, 0xE6BB6C),
+                welcome:     [0x2E0A16, 0x4A1220, 0x7A203A]
             )
 
         // #6D9773 #0C3B2E #BB8A52 #FFBA00

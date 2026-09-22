@@ -1,16 +1,30 @@
 import SwiftUI
 
-/// Owns the navigation stack's path so any screen can return to the dashboard.
+/// Owns which tab is showing and each tab's navigation path.
 ///
-/// Needed because the cleanup summary deliberately hides its back button — going "back"
-/// from it would land on a review screen listing items that no longer exist. It needs to
-/// pop all the way to the root instead, which requires control of the path.
+/// Paths are per-tab rather than shared: switching tabs mid-review should leave the other
+/// tabs exactly as they were. The cleanup summary also needs to pop its own tab back to
+/// root — going "back" from it would land on a review screen listing items that no longer
+/// exist — and that requires control of that specific path.
 @Observable
 @MainActor
 final class Navigator {
-    var path = NavigationPath()
+    var selectedTab: TabItem = .storage
+    private var paths: [TabItem: NavigationPath] = [:]
 
+    func binding(for tab: TabItem) -> Binding<NavigationPath> {
+        Binding(
+            get: { self.paths[tab] ?? NavigationPath() },
+            set: { self.paths[tab] = $0 }
+        )
+    }
+
+    /// Clears the current tab's stack.
     func popToRoot() {
-        path = NavigationPath()
+        paths[selectedTab] = NavigationPath()
+    }
+
+    func show(_ tab: TabItem) {
+        selectedTab = tab
     }
 }

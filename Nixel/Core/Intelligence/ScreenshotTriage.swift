@@ -29,12 +29,15 @@ actor ScreenshotTriage {
 
     func allVerdicts() -> [String: ScreenshotVerdict] { cache }
 
-    /// Triages screenshots that haven't been classified yet.
-    /// `limit` keeps a first run bounded — the model is fast but not free, and a user with
-    /// 3,000 screenshots should not wait for all of them before seeing anything.
+    /// Triages every screenshot that hasn't been classified yet.
+    ///
+    /// There is no cap: the whole set gets read. It runs after the grid is already on
+    /// screen and writes its cache incrementally, so the user never waits on the model to
+    /// see their screenshots — categories simply fill in as they are decided. `limit` only
+    /// exists as a safety valve for pathological libraries.
     func triage(
         _ assets: [PhotoAsset],
-        limit: Int = 60,
+        limit: Int = 5_000,
         progress: @Sendable @escaping (Double) -> Void
     ) async {
         let pending = assets.filter { cache[$0.id] == nil }.prefix(limit)
@@ -59,6 +62,7 @@ actor ScreenshotTriage {
 
             done += 1
             progress(Double(done) / Double(pending.count))
+            if done % 10 == 0 { persist() }
         }
 
         persist()
