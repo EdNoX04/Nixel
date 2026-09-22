@@ -80,12 +80,13 @@ actor ScreenshotTriage {
     /// Pulls text out of a screenshot. `.fast` is the right level here: we only need enough
     /// words to tell a receipt from a meme, not a faithful transcription.
     private static func recognisedText(in asset: PHAsset) async -> String? {
-        guard let cgImage = await SimilarityEngine.analysisImage(for: asset, side: 640) else {
+        guard let cgImage = await SimilarityEngine.analysisImage(
+            for: asset, side: 900, contentMode: .aspectFit) else {
             return nil
         }
 
         let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .fast
+        request.recognitionLevel = .accurate
         request.usesLanguageCorrection = false
 
         do {

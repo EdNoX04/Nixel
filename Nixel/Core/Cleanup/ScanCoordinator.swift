@@ -38,6 +38,7 @@ final class ScanCoordinator {
 
     /// Verdicts from on-device intelligence, keyed by asset id.
     var screenshotVerdicts: [String: ScreenshotVerdict] = [:]
+    private(set) var isTriaging = false
 
     init() {
         for category in CleanupCategory.allCases {
@@ -166,10 +167,14 @@ final class ScanCoordinator {
         // On-device triage of screenshots. Runs after the list is already on screen so
         // the user never waits on the model to see their screenshots.
         if IntelligenceService.shared.availability.isAvailable, !sized.isEmpty {
+            isTriaging = true
             Task { [weak self, triage] in
                 await triage.triage(sized) { _ in }
                 let verdicts = await triage.allVerdicts()
-                await MainActor.run { self?.screenshotVerdicts = verdicts }
+                await MainActor.run {
+                    self?.screenshotVerdicts = verdicts
+                    self?.isTriaging = false
+                }
             }
         }
 

@@ -138,11 +138,41 @@ final class IntelligenceService {
                 reason: content.reason
             )
         } catch {
-            return nil
+            // The model declines some content outright. A boarding pass reliably trips it,
+            // which is precisely the kind of screenshot we must not get wrong, so fall back
+            // to a local keyword read rather than returning "unknown".
+            return Self.keywordVerdict(for: text)
         }
         #else
-        return nil
+        return Self.keywordVerdict(for: text)
         #endif
+    }
+
+    /// A deterministic, offline second opinion.
+    ///
+    /// Used when the model is unavailable or refuses. It only ever votes for the
+    /// *cautious* answer: it can mark something sensitive, never safe to delete. Missing a
+    /// meme costs nothing; letting a boarding pass through as "safe" costs a flight.
+    static func keywordVerdict(for text: String) -> ScreenshotVerdict? {
+        let haystack = text.lowercased()
+        func any(_ needles: [String]) -> Bool { needles.contains { haystack.contains($0) } }
+
+        if any(["boarding pass", "flight", "gate ", "seat ", "departure", "e-ticket",
+                "booking reference", "confirmation code", "pnr"]) {
+            return ScreenshotVerdict(kind: .ticket, safeToDelete: false,
+                                     reason: "Looks like a travel pass")
+        }
+        if any(["verification code", "one-time", "one time code", "otp", "2fa",
+                "do not share", "never share", "authentication code", "passcode"]) {
+            return ScreenshotVerdict(kind: .credential, safeToDelete: false,
+                                     reason: "Looks like a security code")
+        }
+        if any(["subtotal", "total", "vat", "invoice", "receipt", "amount paid",
+                "order #", "order no", "paid with"]) {
+            return ScreenshotVerdict(kind: .receipt, safeToDelete: false,
+                                     reason: "Looks like a receipt")
+        }
+        return nil
     }
 
     /// One plain sentence describing what a scan turned up, for the daily notification.

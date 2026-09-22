@@ -230,18 +230,34 @@ actor SimilarityEngine {
     /// `isSynchronous = true` combined with `.fastFormat` makes Photos return nil for
     /// every asset — the options contradict each other. `.highQualityFormat` delivers
     /// exactly one callback, so a continuation is correct and safe from double-resume.
-    nonisolated static func analysisImage(for asset: PHAsset, side: CGFloat = 224) async -> CGImage? {
+    /// Loads a downscaled image for analysis.
+    ///
+    /// `contentMode` matters more than it looks. `.aspectFill` crops to a centred square,
+    /// which is what perceptual hashing wants — every image framed identically. It is
+    /// exactly wrong for OCR: a 1290x2796 screenshot squeezed into a 640 square loses most
+    /// of its text off the top and bottom, and the model then sees a fragment. Text reading
+    /// passes `.aspectFit` so the whole screen survives.
+    nonisolated static func analysisImage(
+        for asset: PHAsset,
+        side: CGFloat = 224,
+        contentMode: PHImageContentMode = .aspectFill
+    ) async -> CGImage? {
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = false     // never pull originals from iCloud mid-scan
         options.isSynchronous = false
 
+        // aspectFit needs a box big enough for the long edge to stay legible.
+        let target = contentMode == .aspectFit
+            ? CGSize(width: side, height: side * 3)
+            : CGSize(width: side, height: side)
+
         return await withCheckedContinuation { continuation in
             PHImageManager.default().requestImage(
                 for: asset,
-                targetSize: CGSize(width: side, height: side),
-                contentMode: .aspectFill,
+                targetSize: target,
+                contentMode: contentMode,
                 options: options
             ) { image, _ in
                 continuation.resume(returning: image?.cgImage)

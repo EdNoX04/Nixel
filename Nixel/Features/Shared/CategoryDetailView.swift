@@ -10,9 +10,7 @@ struct CategoryDetailView: View {
         case .similarPhotos:
             SimilarPhotosView(groups: scanner.similarGroups)
         case .screenshots:
-            PhotoGridScreen(category: .screenshots,
-                            assets: scanner.screenshots,
-                            emptyMessage: "No screenshots found.")
+            ScreenshotsView(assets: scanner.screenshots)
         case .blurryPhotos:
             PhotoGridScreen(category: .blurryPhotos,
                             assets: scanner.blurryPhotos,
