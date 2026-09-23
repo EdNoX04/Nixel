@@ -147,15 +147,22 @@ enum DebugContactSeed {
         var removed = 0
     }
 
-    /// Brings the demo contacts to exactly one copy of each fixture.
-    ///
-    /// Matching is by content, not by position, so it copes with every state a test phone
-    /// ends up in: nothing seeded yet, a list that has since grown, Add tapped twice, or
-    /// demo contacts already merged in the app. Surplus or edited copies are removed —
-    /// only ever from this seeder's own manifest — and missing fixtures are added.
-    @discardableResult
-    static func seed() throws -> SeedResult {
-        let store = CNContactStore()
+    /// What `seed()` would do right now. Reads only this seeder's own contacts.
+    struct Status: Equatable {
+        var missing = 0
+        var surplus = 0
+        var isUpToDate: Bool { missing == 0 && surplus == 0 }
+    }
+
+    static func status() -> Status {
+        let plan = plan(in: CNContactStore())
+        return Status(missing: plan.missing.count, surplus: plan.surplus.count)
+    }
+
+    /// Matches this seeder's contacts to the fixtures by content: one kept per fixture,
+    /// fixtures with no match are missing, and anything left over is surplus.
+    private static func plan(in store: CNContactStore)
+        -> (kept: [String], missing: [Spec], surplus: [CNContact]) {
         let keys: [CNKeyDescriptor] = [
             CNContactIdentifierKey, CNContactGivenNameKey, CNContactFamilyNameKey,
             CNContactOrganizationNameKey, CNContactPhoneNumbersKey, CNContactEmailAddressesKey
@@ -180,7 +187,19 @@ enum DebugContactSeed {
                 missing.append(spec)
             }
         }
-        let surplus = unclaimed.values.flatMap { $0 }
+        return (kept, missing, unclaimed.values.flatMap { $0 })
+    }
+
+    /// Brings the demo contacts to exactly one copy of each fixture.
+    ///
+    /// Matching is by content, not by position, so it copes with every state a test phone
+    /// ends up in: nothing seeded yet, a list that has since grown, Add tapped twice, or
+    /// demo contacts already merged in the app. Surplus or edited copies are removed —
+    /// only ever from this seeder's own manifest — and missing fixtures are added.
+    @discardableResult
+    static func seed() throws -> SeedResult {
+        let store = CNContactStore()
+        let (kept, missing, surplus) = plan(in: store)
         guard !missing.isEmpty || !surplus.isEmpty else {
             saveManifest(kept)
             return SeedResult()

@@ -157,7 +157,7 @@ the agent does all the work and leaves only the irreversible tap to you.
 
 - **Vision's neural models cannot run in the iOS Simulator.** They fail with
   `Failed to create espresso context`. That affects feature prints *and* face detection, so
-  in the Simulator the app falls back to a pure-CPU descriptor and reports people detection
+  in the Simulator the app falls back to a pure-CPU descriptor and reports the people safeguard
   as unavailable rather than silently returning "no people". On device both work.
 - **Borderline blur is left alone.** Blur is measured on the previews Photos provides,
   which make mildly blurred shots read sharper. The threshold sits just below the least

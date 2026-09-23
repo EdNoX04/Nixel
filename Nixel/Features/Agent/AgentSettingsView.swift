@@ -9,6 +9,7 @@ struct AgentSettingsView: View {
     @State private var agent = AgentViewModel()
     #if DEBUG
     @State private var demoStatus: DemoLibrary.Status?
+    @State private var contactStatus: DebugContactSeed.Status?
     #endif
     @Environment(ScanCoordinator.self) private var scanner
     @Environment(PermissionCenter.self) private var permissions
@@ -77,19 +78,21 @@ struct AgentSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // Named for what it does. "People detection · Ready" read as face
+                // recognition or grouping by person, which Nixel deliberately doesn't do.
                 HStack {
-                    Text("People detection")
+                    Text("Protect photos with people")
                     Spacer()
-                    Text(agent.peopleState)
+                    Text(agent.peopleState(protecting: scanner.peopleCount))
                         .foregroundStyle(agent.peopleReady ? Theme.success : .secondary)
                 }
                 .font(.subheadline)
 
-                if !agent.peopleReady {
-                    Text("Vision's detectors are neural and don't run in the Simulator. On a real iPhone, photos with people are left out of bulk selections.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(agent.peopleReady
+                     ? "Photos with someone in them are never swept up by Select All. Nixel only notices that a person is there — it doesn't recognise who."
+                     : "This needs Vision's neural detectors, which don't run in the Simulator. On a real iPhone, photos with people are left out of bulk selections.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 HStack {
                     Text("Last run")
@@ -153,14 +156,16 @@ struct AgentSettingsView: View {
                     HStack {
                         Text("Add demo contacts")
                         Spacer()
-                        Text("\(DebugContactSeed.fixtures.count) people").foregroundStyle(.secondary)
+                        Text(Self.describe(contactStatus)).foregroundStyle(.secondary)
                     }
                 }
+                .disabled(contactStatus?.isUpToDate == true)
 
                 Button("Remove demo contacts", role: .destructive) {
                     let removed = (try? DebugContactSeed.removeSeeded()) ?? 0
                     agent.seedMessage = "Removed \(removed) demo contacts. Nothing else was touched."
                     scanner.scanContacts(access: permissions.contacts)
+                    Task { await refreshDemoStatus() }
                 }
                 .disabled(DebugContactSeed.seededCount == 0)
             } header: {
@@ -215,6 +220,18 @@ struct AgentSettingsView: View {
 
     private func refreshDemoStatus() async {
         demoStatus = await Task.detached { DemoLibrary.status() }.value
+        // Contacts can only be compared once Nixel may read them.
+        if permissions.contacts.canScan {
+            contactStatus = await Task.detached { DebugContactSeed.status() }.value
+        }
+    }
+
+    private static func describe(_ status: DebugContactSeed.Status?) -> String {
+        guard let status else { return "\(DebugContactSeed.fixtures.count) people" }
+        var parts: [String] = []
+        if status.missing > 0 { parts.append("\(status.missing) new") }
+        if status.surplus > 0 { parts.append("\(status.surplus) extra") }
+        return parts.isEmpty ? "up to date" : parts.joined(separator: " · ")
     }
 
     private static func describe(_ status: DemoLibrary.Status) -> String {
@@ -269,6 +286,7 @@ struct AgentSettingsView: View {
         } catch {
             agent.seedMessage = "Couldn't add contacts: \(error.localizedDescription)"
         }
+        await refreshDemoStatus()
     }
 
     private func removeDemo() async {
@@ -311,7 +329,10 @@ final class AgentViewModel {
     var intelligenceReady: Bool { IntelligenceService.shared.availability.isAvailable }
 
     var peopleReady: Bool { PeopleDetector.isAvailable }
-    var peopleState: String { PeopleDetector.isAvailable ? "Ready" : "Unavailable here" }
+    func peopleState(protecting count: Int) -> String {
+        guard PeopleDetector.isAvailable else { return "Unavailable here" }
+        return count > 0 ? "\(count) protected" : "On"
+    }
 
     var intelligenceState: String {
         switch IntelligenceService.shared.availability {
