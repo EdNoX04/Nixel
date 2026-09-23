@@ -40,6 +40,13 @@ actor SimilarityEngine {
     /// the dimension-bucket pass below.
     private let timeWindow = 240
 
+    /// ...and within this many seconds. The window above counts photos, not time, so on
+    /// a sparse library 240 neighbours can span months — and two look-alike shots taken
+    /// seasons apart were grouped as "similar". Bursts, retakes and saved copies land
+    /// within seconds or minutes; exact re-saves made later are still caught by the
+    /// same-dimensions duplicate pass, which ignores time.
+    private let maxGap: TimeInterval = 3_600
+
     private let store = FeaturePrintStore()
 
     // MARK: - Public API
@@ -58,6 +65,11 @@ actor SimilarityEngine {
             progress(1)
             return
         }
+        // Progress is over the whole library, cached photos included, so a scan resumed
+        // after the phone locked carries on from where it was instead of counting from 0.
+        let cached = assets.count - missing.count
+        let total = Double(max(assets.count, 1))
+        progress(Double(cached) / total)
 
         // Warm the models once, serially, instead of cold-loading them in parallel.
         await VisionWork.warmUp()
@@ -91,7 +103,7 @@ actor SimilarityEngine {
                 // Fine-grained: on a large library a 20-photo step left the ring frozen
                 // long enough to look hung.
                 if done % 4 == 0 || done == missing.count {
-                    progress(Double(done) / Double(missing.count))
+                    progress(Double(cached + done) / total)
                 }
                 // Save as we go. The cache used to be written only once the whole pass
                 // finished, so backgrounding the app partway through a big library threw
@@ -199,9 +211,13 @@ actor SimilarityEngine {
                 var bestAnchor = -1
                 var bestDistance = Float.greatestFiniteMagnitude
 
-                // Only anchors still inside the time window are candidates.
+                // Only anchors still inside the time window are candidates. Anchors are in
+                // time order, so the first one out of range ends the search.
+                let taken = usable[order[position]].creationDate
                 for anchor in anchors.reversed() {
                     guard position - anchor <= timeWindow else { break }
+                    if let taken, let anchorTaken = usable[order[anchor]].creationDate,
+                       taken.timeIntervalSince(anchorTaken) > maxGap { break }
                     let d = distanceSquared(anchor, position)
                     if d <= squaredThreshold && d < bestDistance {
                         bestDistance = d

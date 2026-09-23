@@ -32,9 +32,14 @@ enum Theme {
     /// Palettes are not all dark-on-light. Buttermilk's dark-mode primary is cream, and
     /// white text on it is invisible. Rather than hand-maintain a label colour per palette
     /// per appearance, this derives it from the primary's relative luminance.
-    static var onPrimary: Color {
-        let pair = spec.primary
-        return Color(uiColor: UIColor { traits in
+    static var onPrimary: Color { readable(on: spec.primary) }
+
+    /// Label colour for the contacts accent — light in several palettes' dark renditions,
+    /// where the system's white label on a filled button all but disappeared.
+    static var onContacts: Color { readable(on: spec.contacts) }
+
+    private static func readable(on pair: (light: UInt32, dark: UInt32)) -> Color {
+        Color(uiColor: UIColor { traits in
             let hex = traits.userInterfaceStyle == .dark ? pair.dark : pair.light
             return Self.isLight(hex) ? UIColor(white: 0.08, alpha: 1) : .white
         })

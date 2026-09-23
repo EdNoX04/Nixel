@@ -50,6 +50,7 @@ enum DemoLibrary {
         var pending = 0     // files in the folder with no asset yet
         var surplus = 0     // extra assets for a file that already has one
         var unknown = 0     // tracked assets whose source file can't be told
+        var files = 0       // media files in the folder
     }
 
     /// Re-derives the manifest from Photos and reports what an import would do.
@@ -61,7 +62,8 @@ enum DemoLibrary {
         let status = Status(
             pending: availableFiles().filter { !have.contains($0.lastPathComponent) }.count,
             surplus: surplus.count,
-            unknown: unknown.count)
+            unknown: unknown.count,
+            files: availableFiles().count)
         writeDiagnostics(status, kept: kept, surplus: surplus)
         return status
     }

@@ -239,6 +239,7 @@ struct AgentSettingsView: View {
         if status.pending > 0 { parts.append("\(status.pending) new") }
         if status.surplus > 0 { parts.append("\(status.surplus) extra") }
         if status.unknown > 0 { parts.append("\(status.unknown) unknown") }
+        if parts.isEmpty && status.files == 0 { return "no files" }
         return parts.isEmpty ? "up to date" : parts.joined(separator: " · ")
     }
 

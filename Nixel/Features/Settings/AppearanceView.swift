@@ -8,7 +8,6 @@ import SwiftUI
 struct AppearanceView: View {
     @Environment(ThemeStore.self) private var theme
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         @Bindable var theme = theme
@@ -50,7 +49,7 @@ struct AppearanceView: View {
 
                 Section {
                     HStack(spacing: Theme.Space.lg) {
-                        iconPreview(theme.matchesIcon ? theme.palette : .forest)
+                        iconPair(theme.matchesIcon ? theme.palette : .forest)
                         Toggle(isOn: $theme.matchesIcon) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Match palette")
@@ -66,7 +65,7 @@ struct AppearanceView: View {
                 } header: {
                     Text("App Icon")
                 } footer: {
-                    Text("The Home Screen icon changes when you close this screen. iOS confirms each change with a short alert.")
+                    Text("Light and dark versions — the Home Screen shows whichever your iPhone is set to, not Nixel's own appearance. It changes when you close this screen, and iOS confirms with a short alert.")
                 }
 
                 Section {
@@ -93,22 +92,30 @@ struct AppearanceView: View {
         }
     }
 
-    /// The palette's app icon, drawn with the same colours as the icon file.
-    private func iconPreview(_ palette: AppPalette) -> some View {
-        let colours = colorScheme == .dark ? palette.iconColours.dark : palette.iconColours.light
-        return RoundedRectangle(cornerRadius: 13, style: .continuous)
+    /// Both renditions of the palette's icon. Showing one chosen by Nixel's own appearance
+    /// was wrong whenever the app was set to Dark on a phone in Light: the Home Screen follows
+    /// the iPhone's setting, so the preview showed an icon that never appeared there.
+    private func iconPair(_ palette: AppPalette) -> some View {
+        HStack(spacing: 8) {
+            iconTile(palette.iconColours.light)
+            iconTile(palette.iconColours.dark)
+        }
+        .id(palette)
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+
+    private func iconTile(_ colours: (ground: Color, mark: Color)) -> some View {
+        RoundedRectangle(cornerRadius: 11, style: .continuous)
             .fill(colours.ground)
-            .frame(width: 58, height: 58)
+            .frame(width: 48, height: 48)
             .overlay {
-                NotchedMark(side: 24, colour: colours.mark)
+                NotchedMark(side: 20, colour: colours.mark)
                     .offset(x: 2, y: 2)
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.1), lineWidth: 0.5)
             )
-            .id(palette)
-            .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 
     private func row(_ palette: AppPalette, selected: Bool) -> some View {

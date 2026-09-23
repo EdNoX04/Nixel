@@ -151,7 +151,7 @@ struct AmbientBackground: View {
     /// on the way in rather than vanishing.
     private static func quiet(x: Double, y: Double) -> Double {
         func ramp(_ v: Double) -> Double { max(0, min(1, v)) }
-        let inY = ramp(min(y - 0.55, 0.85 - y) / 0.04)
+        let inY = ramp(min(y - 0.52, 0.86 - y) / 0.03)
         let inX = ramp(min(x - 0.05, 0.95 - x) / 0.05)
         return 1 - 0.9 * inY * inX
     }

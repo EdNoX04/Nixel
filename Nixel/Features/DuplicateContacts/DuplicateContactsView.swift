@@ -59,7 +59,7 @@ struct DuplicateContactsView: View {
         } description: {
             Text("Nixel needs to read your contacts to find duplicates. They never leave this iPhone.")
         } actions: {
-            Button(permissions.contacts == .notDetermined ? "Allow Access" : "Open Settings") {
+            Button {
                 Task {
                     if permissions.contacts == .notDetermined {
                         let access = await permissions.requestContacts()
@@ -68,6 +68,9 @@ struct DuplicateContactsView: View {
                         permissions.openSettings()
                     }
                 }
+            } label: {
+                Text(permissions.contacts == .notDetermined ? "Allow Access" : "Open Settings")
+                    .foregroundStyle(Theme.onPrimary)
             }
             .buttonStyle(.borderedProminent)
         }
@@ -203,6 +206,7 @@ private struct ContactGroupRow: View {
                     } else {
                         Label("Merge", systemImage: "arrow.triangle.merge")
                             .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.onContacts)
                             .frame(maxWidth: .infinity)
                     }
                 }

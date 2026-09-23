@@ -87,9 +87,16 @@ final class ScanCoordinator {
             case .ready: done += weight; total += weight
             }
         }
-        guard total > 0 else { return 0 }
-        return min(1, done / total)
+        guard total > 0 else { return isScanning ? progressFloor : 0 }
+        let value = min(1, done / total)
+        return isScanning ? max(progressFloor, value) : value
     }
+
+    /// Where the ring stood when a scan was paused for the lock screen. A resumed scan
+    /// re-runs its quick first steps, and without this the ring dipped back towards zero
+    /// before catching up — which read as the scan starting over.
+    private var progressFloor = 0.0
+    private var pausedProgress = 0.0
 
     /// Total space the current findings could free.
     var totalReclaimable: Int64 {
@@ -291,6 +298,7 @@ final class ScanCoordinator {
         guard isScanning else { return }
         trace("background: pausing scan")
         resumeAfterBackground = true
+        pausedProgress = overallProgress
         cancelScan()
     }
 
@@ -300,6 +308,7 @@ final class ScanCoordinator {
         resumeAfterBackground = false
         trace("foreground: resuming scan")
         scanPhotos(access: access, restart: true)
+        progressFloor = pausedProgress
     }
 
     func cancelScan() {
@@ -319,6 +328,7 @@ final class ScanCoordinator {
             trace("scan request ignored: already scanning")
             return
         }
+        progressFloor = 0
         guard access.canScan else {
             let reason = access == .denied || access == .restricted
                 ? "Photo access is off"
@@ -359,6 +369,7 @@ final class ScanCoordinator {
 
             trace("scan: finished in \(String(format: "%.1f", elapsed))s")
             self.isScanning = false
+            self.progressFloor = 0
             self.lastScanDate = Date()
             self.refreshStorage()
             self.writeDiagnostics(access: access, duration: elapsed)
