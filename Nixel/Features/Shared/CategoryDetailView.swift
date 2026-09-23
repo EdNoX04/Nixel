@@ -30,7 +30,7 @@ struct PhotoGridScreen: View {
     var emptyMessage: String
 
     @Environment(CleanupSelection.self) private var selection
-    @State private var showReview = false
+    @Environment(Navigator.self) private var navigator
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 3)
 
@@ -79,21 +79,14 @@ struct PhotoGridScreen: View {
         .toolbar {
             if !assets.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SwipeReviewView(category: category, assets: assets)
-                    } label: {
+                    NavigationLink(value: Route.quickReview(category)) {
                         Label("Quick Review", systemImage: "rectangle.stack")
                     }
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if selection.count(in: category) > 0 {
-                SelectionBar(count: selection.count(in: category),
-                             bytes: selection.bytes(in: category)) { showReview = true }
-            }
-        }
-        .navigationDestination(isPresented: $showReview) { ReviewView() }
+        .selectionBar(count: selection.count(in: category),
+                      bytes: selection.bytes(in: category)) { navigator.push(.review) }
     }
 
     @State private var heldBack = 0

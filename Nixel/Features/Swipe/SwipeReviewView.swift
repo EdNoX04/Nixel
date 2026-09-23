@@ -30,6 +30,9 @@ struct SwipeReviewView: View {
     @State private var index = 0
     @State private var drag: CGSize = .zero
     @State private var decisions: [(asset: PhotoAsset, kept: Bool)] = []
+    /// Whether the current drag has gone far enough to count — flips once each way, which
+    /// is what the haptic keys off.
+    @State private var armed = false
 
     private var remaining: [PhotoAsset] { Array(assets.dropFirst(index)) }
     private var current: PhotoAsset? { remaining.first }
@@ -56,6 +59,8 @@ struct SwipeReviewView: View {
             if !remaining.isEmpty { controls }
         }
         .background(Color(.systemGroupedBackground))
+        .sensoryFeedback(.impact(weight: .light), trigger: armed) { _, isArmed in isArmed }
+        .sensoryFeedback(.selection, trigger: decisions.count)
         .navigationTitle("Quick Review")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -83,6 +88,7 @@ struct SwipeReviewView: View {
 
             ProgressView(value: Double(index), total: Double(max(assets.count, 1)))
                 .tint(Theme.indigo)
+                .animation(.easeOut(duration: 0.25), value: index)
         }
         .padding(.horizontal, Theme.Space.lg)
         .padding(.vertical, Theme.Space.md)
@@ -118,11 +124,13 @@ struct SwipeReviewView: View {
             .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
             .scaleEffect(1 - CGFloat(depth) * 0.04)
             .offset(y: CGFloat(depth) * 10)
-            .offset(x: isTop ? drag.width : 0)
-            .rotationEffect(.degrees(isTop ? Double(drag.width / 18) : 0))
+            // The top card follows the finger exactly — no implicit animation on the drag,
+            // which made it trail behind like it was on a spring. Releases and decisions
+            // animate explicitly instead.
+            .offset(x: isTop ? drag.width : 0, y: isTop ? drag.height * 0.25 : 0)
+            .rotationEffect(.degrees(isTop ? Double(drag.width / 18) : 0),
+                            anchor: .bottom)
             .modifier(SwipeGestureModifier(enabled: isTop, gesture: swipeGesture(asset)))
-            .animation(.spring(response: 0.32, dampingFraction: 0.78), value: drag)
-            .animation(.spring(response: 0.32, dampingFraction: 0.78), value: index)
         }
         .padding(.horizontal, Theme.Space.xl)
     }
@@ -153,13 +161,20 @@ struct SwipeReviewView: View {
 
     private func swipeGesture(_ asset: PhotoAsset) -> some Gesture {
         DragGesture()
-            .onChanged { drag = $0.translation }
+            .onChanged { value in
+                drag = value.translation
+                armed = abs(value.translation.width) > commitDistance
+            }
             .onEnded { value in
-                if abs(value.translation.width) > commitDistance {
-                    decide(asset, keep: value.translation.width > 0)
+                // A quick flick counts even if it didn't travel far.
+                let projected = value.predictedEndTranslation.width
+                if abs(value.translation.width) > commitDistance || abs(projected) > commitDistance * 2.5 {
+                    decide(asset, keep: (abs(value.translation.width) > commitDistance
+                                         ? value.translation.width : projected) > 0)
                 } else {
-                    drag = .zero
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) { drag = .zero }
                 }
+                armed = false
             }
     }
 
@@ -197,7 +212,9 @@ struct SwipeReviewView: View {
 
     private func decide(_ asset: PhotoAsset, keep: Bool) {
         // Fling the card off-screen before advancing, so the motion reads as a decision.
-        drag = CGSize(width: keep ? 700 : -700, height: 0)
+        withAnimation(.easeIn(duration: 0.2)) {
+            drag = CGSize(width: keep ? 700 : -700, height: drag.height)
+        }
 
         if keep {
             selection.deselect([asset], in: category)
@@ -207,21 +224,24 @@ struct SwipeReviewView: View {
         decisions.append((asset, keep))
 
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 180_000_000)
-            index += 1
+            try? await Task.sleep(nanoseconds: 200_000_000)
             drag = .zero
+            // The cards behind move up into place.
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { index += 1 }
         }
     }
 
     private func undo() {
         guard let last = decisions.popLast() else { return }
-        if last.kept {
-            selection.deselect([last.asset], in: category)
-        } else {
-            selection.deselect([last.asset], in: category)
-        }
+        selection.deselect([last.asset], in: category)
+        // Bring the card back in from the side it left by. The off-screen position has to
+        // render for a frame first; set and animated back in one update, the two changes
+        // cancel out and the card just pops in.
+        drag = CGSize(width: last.kept ? 700 : -700, height: 0)
         index = max(0, index - 1)
-        drag = .zero
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) { drag = .zero }
+        }
     }
 
     // MARK: Finished

@@ -80,18 +80,53 @@ struct MainTabView: View {
         @Bindable var navigator = navigator
 
         NavigationStack(path: navigator.binding(for: item)) {
-            switch item {
-            case .storage:
-                StorageTabView()
-            case .similar:
-                SimilarPhotosView(groups: scanner.similarGroups)
-            case .screenshots:
-                ScreenshotsView(assets: scanner.screenshots)
-            case .videos:
-                LargeVideosView(videos: scanner.largeVideos)
-            case .contacts:
-                DuplicateContactsView()
+            Group {
+                switch item {
+                case .storage:
+                    StorageTabView()
+                case .similar:
+                    SimilarPhotosView(groups: scanner.similarGroups)
+                case .screenshots:
+                    ScreenshotsView(assets: scanner.screenshots)
+                case .videos:
+                    LargeVideosView(videos: scanner.largeVideos)
+                case .contacts:
+                    DuplicateContactsView()
+                }
             }
+            // Registered once, at the root of each stack. Declaring destinations on the
+            // screens themselves registered the same type twice whenever one of those
+            // screens was pushed onto another.
+            .navigationDestination(for: Route.self) { RouteView(route: $0) }
+        }
+    }
+}
+
+/// Builds the screen for a route.
+struct RouteView: View {
+    let route: Route
+    @Environment(ScanCoordinator.self) private var scanner
+
+    var body: some View {
+        switch route {
+        case .category(let category):
+            CategoryDetailView(category: category)
+        case .review:
+            ReviewView()
+        case .summary(let summary):
+            CleanupSummaryView(summary: summary)
+        case .quickReview(let category):
+            SwipeReviewView(category: category, assets: assets(in: category))
+        }
+    }
+
+    private func assets(in category: CleanupCategory) -> [PhotoAsset] {
+        switch category {
+        case .screenshots:   return scanner.screenshots
+        case .largeVideos:   return scanner.largeVideos
+        case .blurryPhotos:  return scanner.blurryPhotos
+        case .similarPhotos: return scanner.similarGroups.flatMap(\.others)
+        case .duplicateContacts: return []
         }
     }
 }

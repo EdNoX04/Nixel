@@ -20,6 +20,7 @@ struct SelectionBar: View {
                         Text("Frees \(Bytes.string(bytes))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .contentTransition(.numericText())
                     }
                 }
 
@@ -48,12 +49,31 @@ struct SelectionBar: View {
     }
 }
 
+extension View {
+    /// Pins the selection bar to the bottom while anything is selected. The bar slides in
+    /// and out, and the scroll inset follows it, instead of both snapping into place on the
+    /// first tap.
+    func selectionBar(count: Int, bytes: Int64, onReview: @escaping () -> Void) -> some View {
+        safeAreaInset(edge: .bottom) {
+            ZStack {
+                if count > 0 {
+                    SelectionBar(count: count, bytes: bytes, onReview: onReview)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.86), value: count > 0)
+        }
+    }
+}
+
 /// Small reusable "Select all / none" header above a grid.
 struct GridSectionHeader: View {
     var title: String
     var subtitle: String?
     var allSelected: Bool
     var onToggleAll: () -> Void
+
+    @State private var toggles = 0
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -70,8 +90,13 @@ struct GridSectionHeader: View {
                 }
             }
             Spacer()
-            Button(allSelected ? "Deselect All" : "Select All", action: onToggleAll)
-                .font(.subheadline.weight(.medium))
+            Button(allSelected ? "Deselect All" : "Select All") {
+                toggles += 1
+                withAnimation(.snappy(duration: 0.25)) { onToggleAll() }
+            }
+            .font(.subheadline.weight(.medium))
+            .contentTransition(.identity)
+            .sensoryFeedback(.selection, trigger: toggles)
         }
     }
 }

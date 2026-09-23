@@ -13,6 +13,7 @@ struct DuplicateContactsView: View {
     @State private var working: Set<String> = []
     @State private var errorMessage: String?
     @State private var mergedCount = 0
+    @State private var cleaned = 0
 
     var body: some View {
         Group {
@@ -32,6 +33,7 @@ struct DuplicateContactsView: View {
                 list
             }
         }
+        .sensoryFeedback(.success, trigger: cleaned)
         .navigationTitle("Duplicate Contacts")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Couldn't merge", isPresented: .constant(errorMessage != nil)) {
@@ -86,6 +88,7 @@ struct DuplicateContactsView: View {
                 }
             } header: {
                 Text("\(scanner.contactGroups.count) group\(scanner.contactGroups.count == 1 ? "" : "s") found")
+                    .contentTransition(.numericText())
             } footer: {
                 Text("Merging keeps every phone number, email and address from all copies, then removes the empty duplicates.")
             }
@@ -102,7 +105,8 @@ struct DuplicateContactsView: View {
             do {
                 let removed = try ContactMerger.merge(group)
                 mergedCount += removed.count
-                scanner.removeContactGroup(group.id)
+                cleaned += 1
+                withAnimation(.snappy(duration: 0.35)) { scanner.removeContactGroup(group.id) }
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -116,7 +120,8 @@ struct DuplicateContactsView: View {
             do {
                 let removed = try ContactMerger.delete(group.others)
                 mergedCount += removed.count
-                scanner.removeContactGroup(group.id)
+                cleaned += 1
+                withAnimation(.snappy(duration: 0.35)) { scanner.removeContactGroup(group.id) }
             } catch {
                 errorMessage = error.localizedDescription
             }

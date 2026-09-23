@@ -16,6 +16,7 @@ struct CleanupSummaryView: View {
     @Environment(Navigator.self) private var navigator
     @Environment(CleanupSelection.self) private var selection
     @State private var appeared = false
+    @State private var shownBytes: Int64 = 0
 
     var body: some View {
         ScrollView {
@@ -35,8 +36,9 @@ struct CleanupSummaryView: View {
                 .animation(.spring(response: 0.45, dampingFraction: 0.6), value: appeared)
 
                 VStack(spacing: Theme.Space.xs) {
-                    Text(Bytes.string(summary.bytes))
+                    Text(Bytes.string(shownBytes))
                         .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .contentTransition(.numericText(value: Double(shownBytes)))
                     Text("cleared from \(summary.count) item\(summary.count == 1 ? "" : "s")")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -67,9 +69,20 @@ struct CleanupSummaryView: View {
             .padding(.horizontal, Theme.Space.lg)
             .padding(.bottom, Theme.Space.sm)
         }
+        .sensoryFeedback(.success, trigger: appeared)
         .onAppear {
             appeared = true
             scanner.refreshStorage()
+        }
+        .task {
+            // Count up to the total, so the number lands rather than just appearing.
+            let steps = 14
+            for step in 1...steps {
+                try? await Task.sleep(nanoseconds: 45_000_000)
+                withAnimation(.snappy(duration: 0.12)) {
+                    shownBytes = summary.bytes * Int64(step) / Int64(steps)
+                }
+            }
         }
     }
 

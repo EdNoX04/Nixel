@@ -167,7 +167,7 @@ struct StorageHero: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 1)
             }
-            .opacity(isScanning ? 0 : 1)
+            .morph(visible: !isScanning)
 
             VStack(spacing: 2) {
                 Text("Scanning")
@@ -179,7 +179,7 @@ struct StorageHero: View {
                     .monospacedDigit()
                     .animation(.easeOut(duration: 0.45), value: Int(progress * 100))
             }
-            .opacity(isScanning ? 1 : 0)
+            .morph(visible: isScanning)
         }
         .animation(.easeInOut(duration: 0.3), value: isScanning)
     }

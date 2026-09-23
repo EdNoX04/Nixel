@@ -70,7 +70,6 @@ struct StorageTabView: View {
                     .accessibilityLabel("Daily agent")
             }
         }
-        .navigationDestination(for: CleanupCategory.self) { CategoryDetailView(category: $0) }
         .sheet(isPresented: $showPrimer) {
             PermissionPrimer(
                 onContinue: {
@@ -118,10 +117,10 @@ struct StorageTabView: View {
                 Text("Everything stays on this iPhone")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            .opacity(state == .scanning ? 1 : 0)
+            .morph(visible: state == .scanning)
 
             emptyState
-                .opacity(state == .empty ? 1 : 0)
+                .morph(visible: state == .empty)
                 .allowsHitTesting(state == .empty)
 
             VStack(spacing: 2) {
@@ -132,22 +131,22 @@ struct StorageTabView: View {
                 Text("Reviewed by you before anything is removed")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            .opacity(state == .reclaimable ? 1 : 0)
+            .morph(visible: state == .reclaimable)
 
             VStack(spacing: 2) {
                 Text("Nothing to clean right now").font(.headline)
                 Text("\(scanner.photosAnalysed) photos checked")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            .opacity(state == .clean ? 1 : 0)
+            .morph(visible: state == .clean)
 
             Text("See what's taking up space — nothing is removed without you")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .opacity(state == .intro ? 1 : 0)
+                .morph(visible: state == .intro)
         }
-        .animation(.easeInOut(duration: 0.3), value: state)
+        .animation(.easeInOut(duration: 0.35), value: state)
     }
 
     /// A scan that could see nothing. Says why instead of silently showing nothing.
@@ -194,6 +193,13 @@ struct StorageTabView: View {
                 Label("Stop", systemImage: "stop.fill")
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo, prominent: false))
+        } else if headlineState == .reclaimable, let tab = biggestWin {
+            // After a scan the next step is reviewing, not scanning again — so that is
+            // what the one big button offers. Rescanning moves to the footer.
+            Button { navigator.show(tab) } label: {
+                Label("Start with \(tab.category?.title ?? tab.title)", systemImage: "arrow.right")
+            }
+            .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo))
         } else {
             Button { Task { await startScan() } } label: {
                 Label(scanner.lastScanDate == nil ? "Scan My iPhone" : "Scan Again",
@@ -201,6 +207,17 @@ struct StorageTabView: View {
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo))
         }
+    }
+
+    /// The tab that frees the most. Blurry photos live on the Similar tab.
+    private var biggestWin: TabItem? {
+        let options: [(TabItem, Int64)] = [
+            (.similar, scanner.summary(.similarPhotos).reclaimableBytes
+                     + scanner.summary(.blurryPhotos).reclaimableBytes),
+            (.screenshots, scanner.summary(.screenshots).reclaimableBytes),
+            (.videos, scanner.summary(.largeVideos).reclaimableBytes)
+        ]
+        return options.filter { $0.1 > 0 }.max { $0.1 < $1.1 }?.0
     }
 
     /// The one route into a scan: an explicit tap.
@@ -226,10 +243,22 @@ struct StorageTabView: View {
             Label("Everything stays on your iPhone", systemImage: "lock.shield")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            if let date = scanner.lastScanDate {
-                Text("Last scan \(date.formatted(date: .omitted, time: .shortened)) · \(scanner.photosAnalysed) photos")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            // The second line is always laid out, so it appearing after the first scan
+            // doesn't shift the centred ring and button up by half a line.
+            ZStack {
+                if let date = scanner.lastScanDate {
+                HStack(spacing: 6) {
+                    Text("Last scan \(date.formatted(date: .omitted, time: .shortened)) · \(scanner.photosAnalysed) photos")
+                        .foregroundStyle(.tertiary)
+                    if headlineState == .reclaimable {
+                        Button("Scan again") { Task { await startScan() } }
+                            .fontWeight(.semibold)
+                            .disabled(scanner.isScanning)
+                    }
+                }
+                .font(.caption2)
+                }
+                Text(" ").font(.caption2).hidden()
             }
         }
     }

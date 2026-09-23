@@ -387,9 +387,9 @@ final class ScanCoordinator {
         trace("screenshots: fetched \(screenshotAssets.count), sizing")
 
         let sized = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
-            screenshotAssets.map { asset in
+            zip(screenshotAssets, AssetSize.bytes(for: screenshotAssets)).map { asset, bytes in
                 var item = PhotoAsset(asset)
-                item.bytes = AssetSize.bytes(for: asset)
+                item.bytes = bytes
                 return item
             }
         }.value
@@ -410,10 +410,11 @@ final class ScanCoordinator {
 
         trace("videos: fetching + sizing")
         let videoAssets = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
-            PhotoFetch.videos()
-                .map { asset in
+            let videos = PhotoFetch.videos()
+            return zip(videos, AssetSize.bytes(for: videos))
+                .map { asset, bytes in
                     var item = PhotoAsset(asset)
-                    item.bytes = AssetSize.bytes(for: asset)
+                    item.bytes = bytes
                     return item
                 }
                 .sorted { $0.bytes > $1.bytes }
@@ -451,11 +452,14 @@ final class ScanCoordinator {
         // Resolve byte sizes only for photos inside a group — that is the only place the
         // number is shown, and it saves thousands of resource lookups on a big library.
         groups = await Task.detached(priority: .userInitiated) { () -> [PhotoGroup] in
-            groups.map { group in
+            var sizes = AssetSize.bytes(for: groups.flatMap { $0.assets.map(\.phAsset) })[...]
+            return groups.map { group in
                 var updated = group
-                updated.assets = group.assets.map { asset in
+                let groupSizes = sizes.prefix(group.assets.count)
+                sizes = sizes.dropFirst(group.assets.count)
+                updated.assets = zip(group.assets, groupSizes).map { asset, bytes in
                     var item = asset
-                    item.bytes = AssetSize.bytes(for: asset.phAsset)
+                    item.bytes = bytes
                     return item
                 }
                 return updated
@@ -495,9 +499,9 @@ final class ScanCoordinator {
         let detected = BlurDetector.detect(in: scored.filter { !claimed.contains($0.id) })
 
         let blurrySized = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
-            detected.map { asset in
+            zip(detected, AssetSize.bytes(for: detected.map(\.phAsset))).map { asset, bytes in
                 var item = asset
-                item.bytes = AssetSize.bytes(for: asset.phAsset)
+                item.bytes = bytes
                 return item
             }
         }.value

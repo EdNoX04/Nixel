@@ -12,7 +12,7 @@ struct ScreenshotsView: View {
 
     @Environment(ScanCoordinator.self) private var scanner
     @Environment(CleanupSelection.self) private var selection
-    @State private var showReview = false
+    @Environment(Navigator.self) private var navigator
     @State private var heldBack = 0
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 3)
@@ -93,21 +93,14 @@ struct ScreenshotsView: View {
         .toolbar {
             if !assets.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SwipeReviewView(category: .screenshots, assets: assets)
-                    } label: {
+                    NavigationLink(value: Route.quickReview(.screenshots)) {
                         Label("Quick Review", systemImage: "rectangle.stack")
                     }
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if selection.count(in: .screenshots) > 0 {
-                SelectionBar(count: selection.count(in: .screenshots),
-                             bytes: selection.bytes(in: .screenshots)) { showReview = true }
-            }
-        }
-        .navigationDestination(isPresented: $showReview) { ReviewView() }
+        .selectionBar(count: selection.count(in: .screenshots),
+                      bytes: selection.bytes(in: .screenshots)) { navigator.push(.review) }
     }
 
     // MARK: Pieces
@@ -156,11 +149,13 @@ struct ScreenshotsView: View {
                 }
                 Spacer()
                 Button(allSelected ? "Deselect All" : "Select All") {
-                    if allSelected {
-                        selection.deselect(items, in: .screenshots)
-                        heldBack = 0
-                    } else {
-                        heldBack = selection.selectSkippingPeople(items, in: .screenshots)
+                    withAnimation(.snappy(duration: 0.25)) {
+                        if allSelected {
+                            selection.deselect(items, in: .screenshots)
+                            heldBack = 0
+                        } else {
+                            heldBack = selection.selectSkippingPeople(items, in: .screenshots)
+                        }
                     }
                 }
                 .font(.subheadline.weight(.medium))

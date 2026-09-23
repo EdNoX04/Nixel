@@ -28,7 +28,9 @@ struct AmbientBackground: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var clock = AnimationClock()
 
-    private var tints: [Color] { [Theme.indigo, Theme.teal, Theme.success] }
+    /// The palette's own colours, as shown in its swatch row. This used the semantic
+    /// success green as the third tint, which put a mint cast over Mocha, Blush and Twinkle.
+    private var tints: [Color] { [Theme.indigo, Theme.teal, Theme.screenshots] }
 
     /// Light mode needs a good deal more of everything: the palette's light renditions are
     /// darker and less luminous, and an effect tuned against near-black all but vanishes.
@@ -143,6 +145,17 @@ struct AmbientBackground: View {
 
     // MARK: Motif
 
+    /// How much a square may show at a point. The band holding the headline, button and
+    /// footer stays quiet: squares drifting behind them showed through the translucent
+    /// secondary text and read as specks on the words. Edges are soft so a square fades
+    /// on the way in rather than vanishing.
+    private static func quiet(x: Double, y: Double) -> Double {
+        func ramp(_ v: Double) -> Double { max(0, min(1, v)) }
+        let inY = ramp(min(y - 0.55, 0.85 - y) / 0.04)
+        let inX = ramp(min(x - 0.05, 0.95 - x) / 0.05)
+        return 1 - 0.9 * inY * inX
+    }
+
     /// The icon's squares, rising slowly through the gradient.
     private func driftingPixels(t: TimeInterval, rate: Double, lift: Double) -> some View {
         Canvas { context, size in
@@ -157,7 +170,7 @@ struct AmbientBackground: View {
                 guard y > -0.08 else { continue }
 
                 let fade = min(1, min(progress * 5, (1 - progress) * 2.4))
-                let alpha = pixelOpacity * lift * fade
+                let alpha = pixelOpacity * lift * fade * Self.quiet(x: x, y: y)
                 guard alpha > 0.008 else { continue }
 
                 let side = 5 + (seed.truncatingRemainder(dividingBy: 4)) * 4

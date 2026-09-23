@@ -15,7 +15,10 @@ struct AppearanceView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker("Appearance", selection: $theme.mode) {
+                    Picker("Appearance", selection: Binding(
+                        get: { theme.mode },
+                        set: { theme.setMode($0) }
+                    )) {
                         ForEach(AppearanceMode.allCases) { mode in
                             Label(mode.title, systemImage: mode.icon).tag(mode)
                         }
@@ -32,9 +35,7 @@ struct AppearanceView: View {
                 Section {
                     ForEach(AppPalette.allCases) { palette in
                         Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                theme.palette = palette
-                            }
+                            theme.setPalette(palette)
                         } label: {
                             row(palette, selected: theme.palette == palette)
                         }
@@ -54,8 +55,6 @@ struct AppearanceView: View {
                         // rebuild so it can stay open, which means the preview needs its own.
                         // It holds no state, so rebuilding it costs nothing.
                         .id(theme.palette)
-                        .transition(.opacity)
-                        .animation(.easeInOut(duration: 0.3), value: theme.palette)
                 } header: {
                     Text("Preview")
                 }

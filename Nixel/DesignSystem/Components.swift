@@ -142,3 +142,17 @@ struct CategoryCard: View {
         }
     }
 }
+
+extension View {
+    /// Shows or hides a layer that shares its slot with others, blurring as it fades.
+    ///
+    /// A plain cross-fade between two lines of text overlaps them at half opacity, and for
+    /// a moment reads as a jumble of both. Blurring the outgoing one makes the swap read
+    /// as one line turning into the next.
+    func morph(visible: Bool) -> some View {
+        self
+            .opacity(visible ? 1 : 0)
+            .blur(radius: visible ? 0 : 6)
+            .scaleEffect(visible ? 1 : 0.97)
+    }
+}

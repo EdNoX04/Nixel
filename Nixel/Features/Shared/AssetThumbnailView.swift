@@ -13,6 +13,7 @@ struct AssetThumbnailView: View {
 
     @State private var image: UIImage?
     @State private var requestID: PHImageRequestID?
+    @State private var taps = 0
 
     var body: some View {
         ZStack {
@@ -26,6 +27,11 @@ struct AssetThumbnailView: View {
                     .transition(.opacity)
             }
         }
+        .overlay {
+            // A light veil marks the selection on busy photos, where a thin border alone
+            // is easy to miss.
+            Color.black.opacity(isSelected && showsChrome ? 0.18 : 0)
+        }
         .frame(width: side, height: side)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.thumb, style: .continuous))
         .overlay(alignment: .bottomLeading) { durationBadge }
@@ -36,8 +42,16 @@ struct AssetThumbnailView: View {
             RoundedRectangle(cornerRadius: Theme.Radius.thumb, style: .continuous)
                 .strokeBorder(isSelected && showsChrome ? Theme.danger : .clear, lineWidth: 3)
         }
+        .scaleEffect(isSelected && showsChrome ? 0.96 : 1)
+        .animation(.snappy(duration: 0.2), value: isSelected)
         .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
+        .onTapGesture {
+            taps += 1
+            onTap()
+        }
+        // On the tap, not on isSelected: a "Select All" flips dozens of tiles at once and
+        // should not fire dozens of haptics.
+        .sensoryFeedback(.selection, trigger: taps)
         .task(id: asset.id) { load() }
         .onDisappear {
             if let id = requestID { GridThumbnailProvider.shared.cancel(id) }
@@ -56,6 +70,7 @@ struct AssetThumbnailView: View {
     private var selectionMark: some View {
         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
             .font(.system(size: 20))
+            .contentTransition(.symbolEffect(.replace))
             .symbolRenderingMode(.palette)
             .foregroundStyle(.white, isSelected ? Theme.danger : .white.opacity(0.55))
             .shadow(radius: 2)

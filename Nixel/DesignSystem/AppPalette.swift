@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// A complete set of colour tokens, in light and dark renditions.
 ///
@@ -213,6 +212,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
 @Observable
 @MainActor
 final class ThemeStore {
+
     private let key = "appearance.palette"
     private let modeKey = "appearance.mode"
 

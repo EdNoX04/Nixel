@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Every screen that can be pushed inside a tab.
+enum Route: Hashable {
+    case category(CleanupCategory)
+    case review
+    case summary(CleanupSummary)
+    case quickReview(CleanupCategory)
+}
+
 /// Owns which tab is showing and each tab's navigation path.
 ///
 /// Paths are per-tab rather than shared: switching tabs mid-review should leave the other
@@ -27,6 +35,14 @@ final class Navigator {
     /// Clears the current tab's stack.
     func popToRoot() {
         paths[selectedTab] = NavigationPath()
+    }
+
+    /// Pushes onto the current tab's stack. Every screen past a tab's root goes through
+    /// here, so each one is on the path — which is what lets `popToRoot()` reach them.
+    /// (Review and the cleanup summary used to be pushed with `isPresented`, outside the
+    /// path, and "Done" then had nothing to pop on the Similar, Screens and Videos tabs.)
+    func push(_ route: Route) {
+        paths[selectedTab, default: NavigationPath()].append(route)
     }
 
     func show(_ tab: TabItem) {

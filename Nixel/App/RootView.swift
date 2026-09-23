@@ -26,12 +26,10 @@ struct RootView: View {
             .animation(.easeInOut(duration: 0.35), value: account.hasSeenWelcome)
             // Colours resolve through static palette lookups, so a palette change rebuilds
             // the tree to take effect. Tab selection and navigation paths live in Navigator,
-            // outside this boundary, so they survive; the rebuild cross-fades rather than
-            // flashing.
+            // outside this boundary, so they survive. The rebuild itself is instant; the
+            // visible cross-fade is a window snapshot (ThemeStore.crossfade), not two trees.
             .id(theme.palette)
-            .transition(.opacity)
         }
-        .animation(.easeInOut(duration: 0.4), value: theme.palette)
         .preferredColorScheme(theme.mode.colorScheme)
         // These must sit on the stack, not on DashboardView: destinations pushed via
         // `navigationDestination` do not inherit environment applied inside the stack,

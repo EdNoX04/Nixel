@@ -9,11 +9,10 @@ import SwiftUI
 struct ReviewView: View {
     @Environment(CleanupSelection.self) private var selection
     @Environment(ScanCoordinator.self) private var scanner
-    @Environment(\.dismiss) private var dismiss
+    @Environment(Navigator.self) private var navigator
 
     @State private var runner = CleanupRunner()
     @State private var confirming = false
-    @State private var summary: CleanupSummary?
 
     private var categories: [CleanupCategory] {
         CleanupCategory.allCases.filter { selection.count(in: $0) > 0 }
@@ -31,20 +30,6 @@ struct ReviewView: View {
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { deleteBar }
-        .confirmationDialog(
-            "Delete \(selection.totalCount) item\(selection.totalCount == 1 ? "" : "s")?",
-            isPresented: $confirming,
-            titleVisibility: .visible
-        ) {
-            Button("Delete \(selection.totalCount) Item\(selection.totalCount == 1 ? "" : "s")",
-                   role: .destructive) {
-                Task { await performDelete() }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("iOS will ask you to confirm as well. Items move to Recently Deleted, where they can still be recovered for 30 days.")
-        }
-        .navigationDestination(item: $summary) { CleanupSummaryView(summary: $0) }
     }
 
     // MARK: Content
@@ -56,6 +41,7 @@ struct ReviewView: View {
 
                 ForEach(categories) { category in
                     categorySection(category)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 iCloudNotice
@@ -70,12 +56,14 @@ struct ReviewView: View {
             Text(Bytes.string(selection.totalBytes))
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.success)
+                .contentTransition(.numericText())
             Text("will be freed")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text("\(selection.totalCount) item\(selection.totalCount == 1 ? "" : "s") selected")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                .contentTransition(.numericText())
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.Space.xl)
@@ -96,6 +84,7 @@ struct ReviewView: View {
                 Text("\(items.count) · \(Bytes.string(selection.bytes(in: category)))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -104,8 +93,11 @@ struct ReviewView: View {
                         AssetThumbnailView(asset: asset, side: 74, isSelected: true) {
                             // Tapping here unpicks the item — the review screen has to be
                             // a place you can change your mind, not just a confirmation.
-                            selection.toggle(asset, in: category)
+                            withAnimation(.snappy(duration: 0.3)) {
+                                selection.toggle(asset, in: category)
+                            }
                         }
+                        .transition(.scale(scale: 0.6).combined(with: .opacity))
                     }
                 }
             }
@@ -149,14 +141,30 @@ struct ReviewView: View {
                     confirming = true
                 } label: {
                     if runner.isRunning {
-                        ProgressView().frame(maxWidth: .infinity)
+                        ProgressView().tint(.white).frame(maxWidth: .infinity)
                     } else {
                         Text("Delete \(selection.totalCount) Item\(selection.totalCount == 1 ? "" : "s") · \(Bytes.string(selection.totalBytes))")
                             .frame(maxWidth: .infinity)
+                            .contentTransition(.numericText())
                     }
                 }
                 .buttonStyle(GlassActionButtonStyle(tint: Theme.danger, labelColour: .white))
                 .disabled(runner.isRunning)
+                // On the button, so on iOS 26 the confirmation grows out of what was tapped
+                // instead of floating from the top of the screen.
+                .confirmationDialog(
+                    "Delete \(selection.totalCount) item\(selection.totalCount == 1 ? "" : "s")?",
+                    isPresented: $confirming,
+                    titleVisibility: .visible
+                ) {
+                    Button("Delete \(selection.totalCount) Item\(selection.totalCount == 1 ? "" : "s")",
+                           role: .destructive) {
+                        Task { await performDelete() }
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("iOS will ask you to confirm as well. Items move to Recently Deleted, where they can still be recovered for 30 days.")
+                }
             }
             .padding(.horizontal, Theme.Space.xl)
             .padding(.vertical, Theme.Space.lg)
@@ -176,7 +184,7 @@ struct ReviewView: View {
         selection.remove(ids: removed)
         scanner.removeDeleted(ids: removed)
         scanner.refreshStorage()
-        summary = CleanupSummary(count: removed.count, bytes: freed)
+        navigator.push(.summary(CleanupSummary(count: removed.count, bytes: freed)))
     }
 }
 

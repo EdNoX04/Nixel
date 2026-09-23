@@ -10,7 +10,7 @@ struct SimilarPhotosView: View {
 
     @Environment(CleanupSelection.self) private var selection
     @Environment(ScanCoordinator.self) private var scanner
-    @State private var showReview = false
+    @Environment(Navigator.self) private var navigator
     @State private var heldBack = 0
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
@@ -26,7 +26,7 @@ struct SimilarPhotosView: View {
                         if heldBack > 0 { PeopleHeldBackNote(count: heldBack) }
 
                         if scanner.summary(.blurryPhotos).hasFindings {
-                            NavigationLink(value: CleanupCategory.blurryPhotos) {
+                            NavigationLink(value: Route.category(.blurryPhotos)) {
                                 CategoryCard(category: .blurryPhotos,
                                              summary: scanner.summary(.blurryPhotos))
                             }
@@ -53,14 +53,8 @@ struct SimilarPhotosView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if selection.count(in: .similarPhotos) > 0 {
-                SelectionBar(count: selection.count(in: .similarPhotos),
-                             bytes: selection.bytes(in: .similarPhotos)) { showReview = true }
-            }
-        }
-        .navigationDestination(isPresented: $showReview) { ReviewView() }
-        .navigationDestination(for: CleanupCategory.self) { CategoryDetailView(category: $0) }
+        .selectionBar(count: selection.count(in: .similarPhotos),
+                      bytes: selection.bytes(in: .similarPhotos)) { navigator.push(.review) }
     }
 
     @ViewBuilder
@@ -102,6 +96,8 @@ struct SimilarPhotosView: View {
     }
 
     private func selectAllExtras() {
-        heldBack = selection.selectSkippingPeople(groups.flatMap(\.others), in: .similarPhotos)
+        withAnimation(.snappy(duration: 0.25)) {
+            heldBack = selection.selectSkippingPeople(groups.flatMap(\.others), in: .similarPhotos)
+        }
     }
 }

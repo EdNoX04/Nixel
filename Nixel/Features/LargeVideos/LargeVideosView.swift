@@ -7,7 +7,7 @@ struct LargeVideosView: View {
     let videos: [PhotoAsset]
 
     @Environment(CleanupSelection.self) private var selection
-    @State private var showReview = false
+    @Environment(Navigator.self) private var navigator
     @State private var previewing: PhotoAsset?
 
     var body: some View {
@@ -38,21 +38,14 @@ struct LargeVideosView: View {
         .toolbar {
             if !videos.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SwipeReviewView(category: .largeVideos, assets: videos)
-                    } label: {
+                    NavigationLink(value: Route.quickReview(.largeVideos)) {
                         Label("Quick Review", systemImage: "rectangle.stack")
                     }
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if selection.count(in: .largeVideos) > 0 {
-                SelectionBar(count: selection.count(in: .largeVideos),
-                             bytes: selection.bytes(in: .largeVideos)) { showReview = true }
-            }
-        }
-        .navigationDestination(isPresented: $showReview) { ReviewView() }
+        .selectionBar(count: selection.count(in: .largeVideos),
+                      bytes: selection.bytes(in: .largeVideos)) { navigator.push(.review) }
         .sheet(item: $previewing) { VideoPreviewSheet(asset: $0) }
     }
 }
@@ -69,10 +62,14 @@ private struct VideoRow: View {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(isSelected ? Theme.danger : Color.secondary)
+                    .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
+            .sensoryFeedback(.selection, trigger: isSelected)
 
-            AssetThumbnailView(asset: video, side: 64, isSelected: false, onTap: onPreview)
+            // The row has its own selection circle; the tile's would be a second, dead one.
+            AssetThumbnailView(asset: video, side: 64, isSelected: false, showsChrome: false,
+                               onTap: onPreview)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(Bytes.string(video.bytes))
