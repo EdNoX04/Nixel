@@ -46,7 +46,10 @@ struct PhotoGridScreen: View {
             } else {
                 ScrollView {
                     GridSectionHeader(
-                        title: "\(assets.count) \(category.title.lowercased())",
+                        // "1 blurry photos" read wrong; drop the plural s for one.
+                        title: assets.count == 1
+                            ? "1 \(String(category.title.lowercased().dropLast()))"
+                            : "\(assets.count) \(category.title.lowercased())",
                         subtitle: "Total \(Bytes.string(assets.reduce(0) { $0 + $1.bytes }))",
                         allSelected: allSelected,
                         onToggleAll: toggleAll

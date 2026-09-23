@@ -12,9 +12,9 @@ struct PeopleHeldBackNote: View {
             Image(systemName: "person.fill.checkmark")
                 .foregroundStyle(Theme.success)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(count) photo\(count == 1 ? "" : "s") with people left out")
+                Text("\(count) photo\(count == 1 ? "" : "s") left out")
                     .font(.subheadline.weight(.semibold))
-                Text("Select those individually — a fast tap shouldn't sweep up someone's photo.")
+                Text("Photos with people in them and your favourites are never swept up by Select All. Pick them individually if you mean to.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -19,76 +19,107 @@ enum ContactMerger {
         }
     }
 
+    /// Every field Nixel can write back, read fresh at merge time so nothing the scan didn't
+    /// look at is dropped. Notes are the one exception: reading them needs an entitlement
+    /// Apple grants case by case, so a note on a removed card can't be carried over — the
+    /// confirmation dialog says so.
+    private static let mergeKeys: [CNKeyDescriptor] = [
+        CNContactIdentifierKey, CNContactNamePrefixKey, CNContactGivenNameKey,
+        CNContactMiddleNameKey, CNContactFamilyNameKey, CNContactNameSuffixKey,
+        CNContactNicknameKey, CNContactPhoneticGivenNameKey, CNContactPhoneticMiddleNameKey,
+        CNContactPhoneticFamilyNameKey, CNContactOrganizationNameKey, CNContactDepartmentNameKey,
+        CNContactJobTitleKey, CNContactPhoneNumbersKey, CNContactEmailAddressesKey,
+        CNContactPostalAddressesKey, CNContactUrlAddressesKey, CNContactSocialProfilesKey,
+        CNContactInstantMessageAddressesKey, CNContactRelationsKey, CNContactDatesKey,
+        CNContactBirthdayKey, CNContactNonGregorianBirthdayKey, CNContactImageDataKey,
+        CNContactImageDataAvailableKey
+    ].map { $0 as CNKeyDescriptor }
+
     /// Folds `group`'s duplicates into its keeper and removes them.
     /// Returns the ids that were deleted.
     @discardableResult
     static func merge(_ group: ContactDuplicateGroup) throws -> Set<String> {
-        guard let keeper = group.keeper, !group.others.isEmpty else { return [] }
+        guard let keeperRecord = group.keeper, !group.others.isEmpty else { return [] }
 
-        let merged = keeper.contact.mutableCopy() as! CNMutableContact
-        var seenPhones = Set(keeper.phones)
-        var seenEmails = Set(keeper.emails)
-        var seenAddresses = Set(keeper.contact.postalAddresses.map { describe($0.value) })
-        var seenURLs = Set(keeper.contact.urlAddresses.map { ($0.value as String).lowercased() })
+        // Re-read every card: the scan may be minutes old, and a card edited since then
+        // must not be overwritten with the stale copy.
+        let store = CNContactStore()
+        let ids = [keeperRecord.id] + group.others.map(\.id)
+        let request = CNContactFetchRequest(keysToFetch: mergeKeys)
+        request.predicate = CNContact.predicateForContacts(withIdentifiers: ids)
+        request.unifyResults = false
+        var fresh: [String: CNContact] = [:]
+        try store.enumerateContacts(with: request) { contact, _ in fresh[contact.identifier] = contact }
+        guard let keeper = fresh[keeperRecord.id],
+              group.others.allSatisfy({ fresh[$0.id] != nil }) else {
+            throw MergeError.saveFailed("These contacts changed since the scan. Pull to rescan and try again.")
+        }
+        let others = group.others.compactMap { fresh[$0.id] }
 
-        for other in group.others {
-            let contact = other.contact
-
-            for phone in contact.phoneNumbers {
-                let key = ContactMatching.normalisePhone(phone.value.stringValue)
-                guard !key.isEmpty, !seenPhones.contains(key) else { continue }
-                seenPhones.insert(key)
-                merged.phoneNumbers.append(phone)
+        let merged = keeper.mutableCopy() as! CNMutableContact
+        func appendNew<T>(_ values: [CNLabeledValue<T>], to existing: inout [CNLabeledValue<T>],
+                          key: (T) -> String) {
+            var seen = Set(existing.map { key($0.value) })
+            for value in values where !key(value.value).isEmpty && seen.insert(key(value.value)).inserted {
+                existing.append(value)
             }
+        }
 
-            for email in contact.emailAddresses {
-                let key = (email.value as String).lowercased()
-                guard !key.isEmpty, !seenEmails.contains(key) else { continue }
-                seenEmails.insert(key)
-                merged.emailAddresses.append(email)
+        for contact in others {
+            appendNew(contact.phoneNumbers, to: &merged.phoneNumbers) {
+                ContactMatching.normalisePhone($0.stringValue)
             }
-
-            for address in contact.postalAddresses {
-                let key = describe(address.value)
-                guard !seenAddresses.contains(key) else { continue }
-                seenAddresses.insert(key)
-                merged.postalAddresses.append(address)
+            appendNew(contact.emailAddresses, to: &merged.emailAddresses) {
+                ($0 as String).lowercased().trimmingCharacters(in: .whitespaces)
             }
-
-            for url in contact.urlAddresses {
-                let key = (url.value as String).lowercased()
-                guard !seenURLs.contains(key) else { continue }
-                seenURLs.insert(key)
-                merged.urlAddresses.append(url)
+            appendNew(contact.postalAddresses, to: &merged.postalAddresses) { describe($0) }
+            appendNew(contact.urlAddresses, to: &merged.urlAddresses) { ($0 as String).lowercased() }
+            appendNew(contact.socialProfiles, to: &merged.socialProfiles) {
+                "\($0.service)|\($0.username)|\($0.urlString)".lowercased()
             }
+            appendNew(contact.instantMessageAddresses, to: &merged.instantMessageAddresses) {
+                "\($0.service)|\($0.username)".lowercased()
+            }
+            appendNew(contact.contactRelations, to: &merged.contactRelations) { $0.name.lowercased() }
+            appendNew(contact.dates, to: &merged.dates) { "\($0.year)-\($0.month)-\($0.day)" }
 
-            // Scalar fields: only fill gaps, never overwrite what the keeper already has.
-            if merged.organizationName.isEmpty { merged.organizationName = contact.organizationName }
-            if merged.jobTitle.isEmpty { merged.jobTitle = contact.jobTitle }
-            if merged.nickname.isEmpty { merged.nickname = contact.nickname }
-            if merged.birthday == nil { merged.birthday = contact.birthday }
             // Names are completed rather than just gap-filled: "A. Mehta" merged with
             // "Arjun Mehta" should come out as Arjun.
             merged.givenName = ContactMatching.fuller(merged.givenName, contact.givenName)
             merged.familyName = ContactMatching.fuller(merged.familyName, contact.familyName)
-            if merged.imageData == nil, contact.imageDataAvailable {
-                merged.imageData = contact.imageData
+
+            // Everything else only fills gaps — never overwrites what the keeper has.
+            func fill(_ path: ReferenceWritableKeyPath<CNMutableContact, String>, _ value: String) {
+                if merged[keyPath: path].isEmpty { merged[keyPath: path] = value }
             }
+            fill(\.namePrefix, contact.namePrefix)
+            fill(\.middleName, contact.middleName)
+            fill(\.nameSuffix, contact.nameSuffix)
+            fill(\.nickname, contact.nickname)
+            fill(\.phoneticGivenName, contact.phoneticGivenName)
+            fill(\.phoneticMiddleName, contact.phoneticMiddleName)
+            fill(\.phoneticFamilyName, contact.phoneticFamilyName)
+            fill(\.organizationName, contact.organizationName)
+            fill(\.departmentName, contact.departmentName)
+            fill(\.jobTitle, contact.jobTitle)
+            if merged.birthday == nil { merged.birthday = contact.birthday }
+            if merged.nonGregorianBirthday == nil { merged.nonGregorianBirthday = contact.nonGregorianBirthday }
+            if merged.imageData == nil, contact.imageDataAvailable { merged.imageData = contact.imageData }
         }
 
-        let request = CNSaveRequest()
-        request.update(merged)
-        for other in group.others {
-            guard let mutable = other.contact.mutableCopy() as? CNMutableContact else { continue }
-            request.delete(mutable)
+        // One request, so the union is saved and the duplicates removed together or not
+        // at all — a partial merge that deleted without saving would lose data for good.
+        let save = CNSaveRequest()
+        save.update(merged)
+        for contact in others {
+            guard let mutable = contact.mutableCopy() as? CNMutableContact else { continue }
+            save.delete(mutable)
         }
-
         do {
-            try CNContactStore().execute(request)
+            try store.execute(save)
         } catch {
-            throw MergeError.saveFailed(error.localizedDescription)
+            throw MergeError.saveFailed("Contacts couldn't be saved. Nothing was changed.")
         }
-
         return Set(group.others.map(\.id))
     }
 
@@ -104,7 +135,7 @@ enum ContactMerger {
         do {
             try CNContactStore().execute(request)
         } catch {
-            throw MergeError.saveFailed(error.localizedDescription)
+            throw MergeError.saveFailed("Contacts couldn't be deleted. Nothing was changed.")
         }
         return Set(records.map(\.id))
     }

@@ -119,6 +119,7 @@ final class ScanCoordinator {
             return
         }
         summaries[.duplicateContacts]?.state = .scanning(0)
+        contactError = nil
 
         Task { [contactScanner] in
             let records: [ContactRecord]
@@ -162,11 +163,16 @@ final class ScanCoordinator {
     /// Asks the on-device model what a group shows. Lazy and cached: called as groups
     /// scroll into view rather than for the whole library during the scan.
     func describeGroup(_ group: PhotoGroup) {
-        guard groupLabels[group.id] == nil,
+        guard groupLabels[group.id] == nil, !labelsInFlight.contains(group.id),
               IntelligenceService.shared.availability.isAvailable else { return }
+        // Rows re-appear as the list scrolls; without this each appearance started another
+        // image load and model request for the same group.
+        labelsInFlight.insert(group.id)
         Task { [insights] in
-            if let insight = await insights.describe(group: group) {
-                await MainActor.run { self.groupLabels[group.id] = insight.label }
+            let insight = await insights.describe(group: group)
+            await MainActor.run {
+                self.labelsInFlight.remove(group.id)
+                if let insight { self.groupLabels[group.id] = insight.label }
             }
         }
     }
@@ -194,20 +200,22 @@ final class ScanCoordinator {
         recomputeSummaries()
     }
 
+    /// Updates counts after a deletion. A category's state is left as it was: forcing
+    /// everything to "ready" mid-scan made the progress ring jump.
     private func recomputeSummaries() {
-        summaries[.screenshots] = CategorySummary(
-            state: .ready, itemCount: screenshots.count,
-            reclaimableBytes: screenshots.reduce(0) { $0 + $1.bytes })
-        summaries[.largeVideos] = CategorySummary(
-            state: .ready, itemCount: largeVideos.count,
-            reclaimableBytes: largeVideos.reduce(0) { $0 + $1.bytes })
-        summaries[.blurryPhotos] = CategorySummary(
-            state: .ready, itemCount: blurryPhotos.count,
-            reclaimableBytes: blurryPhotos.reduce(0) { $0 + $1.bytes })
-        summaries[.similarPhotos] = CategorySummary(
-            state: .ready,
-            itemCount: similarGroups.reduce(0) { $0 + $1.others.count },
-            reclaimableBytes: similarGroups.reduce(0) { $0 + $1.reclaimableBytes })
+        func update(_ category: CleanupCategory, count: Int, bytes: Int64) {
+            let state = summaries[category]?.state ?? .ready
+            summaries[category] = CategorySummary(state: state, itemCount: count,
+                                                  reclaimableBytes: bytes)
+        }
+        update(.screenshots, count: screenshots.count,
+               bytes: screenshots.reduce(0) { $0 + $1.bytes })
+        update(.largeVideos, count: largeVideos.count,
+               bytes: largeVideos.reduce(0) { $0 + $1.bytes })
+        update(.blurryPhotos, count: blurryPhotos.count,
+               bytes: blurryPhotos.reduce(0) { $0 + $1.bytes })
+        update(.similarPhotos, count: similarGroups.reduce(0) { $0 + $1.others.count },
+               bytes: similarGroups.reduce(0) { $0 + $1.reclaimableBytes })
     }
 
     func removeContactGroup(_ id: String) {
@@ -295,6 +303,13 @@ final class ScanCoordinator {
     /// instead: the descriptor cache is saved on cancellation, and every photo already
     /// analysed is skipped when the scan picks up again.
     func handleBackground() {
+        // Screenshot triage runs OCR and the on-device model — neither belongs in the
+        // background. Anything unfinished is picked up by the next scan.
+        if isTriaging {
+            triageTask?.cancel()
+            isTriaging = false
+            triageInterrupted = !isScanning     // a paused scan restarts triage itself
+        }
         guard isScanning else { return }
         trace("background: pausing scan")
         resumeAfterBackground = true
@@ -304,11 +319,27 @@ final class ScanCoordinator {
 
     func handleForeground(access: PhotoAccess) {
         refreshStorage()
+        if triageInterrupted {
+            triageInterrupted = false
+            startTriage(screenshots)
+        }
         guard resumeAfterBackground else { return }
         resumeAfterBackground = false
         trace("foreground: resuming scan")
         scanPhotos(access: access, restart: true)
         progressFloor = pausedProgress
+    }
+
+    /// Set by the Stop button, so an automatic rescan (a view reappearing, a palette
+    /// rebuild) doesn't quietly undo it. Cleared by the next scan the user asks for.
+    private(set) var stoppedByUser = false
+
+    func resumeAfterStop() { stoppedByUser = false }
+
+    func stopScan() {
+        stoppedByUser = true
+        resumeAfterBackground = false
+        cancelScan()
     }
 
     func cancelScan() {
@@ -382,14 +413,26 @@ final class ScanCoordinator {
 
     /// Classifies screenshots once the heavy pass has finished. Fire-and-forget: the grid is
     /// already on screen, and categories fill in as they are decided.
+    private var triageTask: Task<Void, Never>?
+    private var triageInterrupted = false
+    private var labelsInFlight: Set<String> = []
+
+    /// One triage at a time, owned here so it can be stopped. It used to be a free-running
+    /// task: every rescan started another, and it kept running OCR and the model after
+    /// the app went to the background.
     private func startTriage(_ assets: [PhotoAsset]) {
+        triageTask?.cancel()
         guard !assets.isEmpty else { return }
-        Task { [weak self, triage] in
+        triageTask = Task { [weak self, triage] in
             let ready = await IntelligenceService.shared.currentAvailability().isAvailable
             trace("triage: intelligence available=\(ready)")
             guard ready else { return }
             await MainActor.run { self?.isTriaging = true }
             await triage.triage(assets) { _ in }
+            guard !Task.isCancelled else {
+                await MainActor.run { self?.isTriaging = false }
+                return
+            }
             let verdicts = await triage.allVerdicts()
             await MainActor.run {
                 self?.screenshotVerdicts = verdicts
@@ -465,16 +508,22 @@ final class ScanCoordinator {
         guard !Task.isCancelled else { return }
         photosAnalysed = photoAssets.count
 
+        let generation = scanGeneration
         await engine.prepare(photoAssets) { [weak self] fraction in
             Task { @MainActor in
-                self?.summaries[.similarPhotos]?.state = .scanning(fraction)
+                // A stopped or superseded scan must not leave the ring showing "scanning".
+                guard let self, generation == self.scanGeneration, self.isScanning else { return }
+                self.summaries[.similarPhotos]?.state = .scanning(fraction)
             }
         }
 
         guard !Task.isCancelled else { return }
 
         trace("prepare: done; grouping")
-        var groups = await engine.group(photoAssets)
+        // Screenshots have their own tab; grouping them too would put the same item in two
+        // bulk selections, and a group's keeper could go out through the other one.
+        let screenshotIDs = Set(screenshotsToTriage.map(\.id))
+        var groups = await engine.group(photoAssets.filter { !screenshotIDs.contains($0.id) })
         trace("group: \(groups.count) groups")
 
         // Resolve byte sizes only for photos inside a group — that is the only place the
@@ -521,10 +570,15 @@ final class ScanCoordinator {
             return item
         }
 
-        // Photos already queued for removal as duplicates should not also be counted here,
-        // or the dashboard would promise the same bytes back twice.
-        let claimed = Set(groups.flatMap { $0.others.map(\.id) })
-        let detected = BlurDetector.detect(in: scored.filter { !claimed.contains($0.id) })
+        // Every photo in a similar group stays out of Blurry — the extras so the same bytes
+        // aren't promised twice, and the keeper so a Select All here plus one on the group
+        // can never delete the whole group between them.
+        let claimed = Set(groups.flatMap { $0.assets.map(\.id) })
+        // Screenshots found by screen resolution alone aren't flagged as screenshots by
+        // Photos, so exclude them by id — they belong to the Screenshots tab only.
+        let detected = BlurDetector.detect(in: scored.filter {
+            !claimed.contains($0.id) && !screenshotIDs.contains($0.id)
+        })
 
         let blurrySized = await Task.detached(priority: .userInitiated) { () -> [PhotoAsset] in
             zip(detected, AssetSize.bytes(for: detected.map(\.phAsset))).map { asset, bytes in

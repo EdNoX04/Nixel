@@ -92,6 +92,7 @@ actor PhotoInsight {
     private func persist() {
         if let data = try? JSONEncoder().encode(cache) {
             try? data.write(to: cacheURL, options: .atomic)
+            cacheURL.excludeFromBackup()
         }
     }
 

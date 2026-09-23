@@ -83,25 +83,34 @@ enum DescriptorEngine {
         return resolvedKind
     }
 
+    /// The engine every descriptor on this device should come from. A real iPhone always
+    /// has Vision's feature print; only the Simulator can't run it.
+    ///
+    /// This used to be decided by whichever image was analysed first, and a Vision failure
+    /// on a single photo fell back to a grayscale descriptor that was cached for good.
+    /// Grouping only compares like with like, so if that photo happened to be the oldest,
+    /// every Vision record was ignored and the library showed no duplicates at all.
+    static var expectedKind: DescriptorKind {
+        #if targetEnvironment(simulator)
+        return .grayscale
+        #else
+        return .vision
+        #endif
+    }
+
+    /// A descriptor from the expected engine, or nil if it couldn't be made. A nil is a
+    /// "try again next scan", never a result to keep.
     static func compute(for cgImage: CGImage) -> Descriptor? {
-        lock.lock()
-        let known = resolvedKind
-        lock.unlock()
+        let kind = expectedKind
+        lock.lock(); resolvedKind = kind; lock.unlock()
 
-        // Once we know Vision works (or doesn't), stop probing.
-        if known != .grayscale, let vector = visionPrint(for: cgImage) {
-            if known == nil {
-                lock.lock(); resolvedKind = .vision; lock.unlock()
-            }
-            return Descriptor(kind: .vision, vector: vector)
+        switch kind {
+        case .vision:
+            return visionPrint(for: cgImage).map { Descriptor(kind: .vision, vector: $0) }
+        case .grayscale:
+            let vector = grayscaleDescriptor(for: cgImage)
+            return vector.isEmpty ? nil : Descriptor(kind: .grayscale, vector: vector)
         }
-
-        if known == nil {
-            lock.lock(); resolvedKind = .grayscale; lock.unlock()
-        }
-
-        let vector = grayscaleDescriptor(for: cgImage)
-        return vector.isEmpty ? nil : Descriptor(kind: .grayscale, vector: vector)
     }
 
     // MARK: Vision

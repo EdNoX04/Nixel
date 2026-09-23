@@ -13,8 +13,9 @@ struct LargeVideosView: View {
     var body: some View {
         Group {
             if videos.isEmpty {
-                ContentUnavailableView("No videos", systemImage: "film.stack",
-                                       description: Text("There are no videos in your library."))
+                ScanPendingView(category: .largeVideos,
+                                emptyTitle: "No videos",
+                                emptyMessage: "There are no videos in your library.")
             } else {
                 List {
                     Section {
@@ -27,7 +28,7 @@ struct LargeVideosView: View {
                             )
                         }
                     } header: {
-                        Text("\(videos.count) videos · \(Bytes.string(videos.reduce(0) { $0 + $1.bytes })) total")
+                        Text("\(videos.count) video\(videos.count == 1 ? "" : "s") · \(Bytes.string(videos.reduce(0) { $0 + $1.bytes })) total")
                     }
                 }
                 .listStyle(.plain)
@@ -66,6 +67,8 @@ private struct VideoRow: View {
             }
             .buttonStyle(.plain)
             .sensoryFeedback(.selection, trigger: isSelected)
+            .accessibilityLabel(isSelected ? "Selected for removal" : "Select for removal")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
 
             // The row has its own selection circle; the tile's would be a second, dead one.
             AssetThumbnailView(asset: video, side: 64, isSelected: false, showsChrome: false,
@@ -93,6 +96,7 @@ private struct VideoRow: View {
                     .foregroundStyle(Theme.videos)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Preview video")
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -105,6 +109,7 @@ private struct VideoRow: View {
 private struct VideoPreviewSheet: View {
     let asset: PhotoAsset
     @State private var player: AVPlayer?
+    @State private var failed = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -113,6 +118,10 @@ private struct VideoPreviewSheet: View {
                 if let player {
                     VideoPlayer(player: player)
                         .onAppear { player.play() }
+                } else if failed {
+                    ContentUnavailableView("Can't play this video",
+                                           systemImage: "exclamationmark.icloud",
+                                           description: Text("It may only be in iCloud and couldn't be downloaded right now."))
                 } else {
                     ProgressView("Loading video…")
                 }
@@ -139,6 +148,6 @@ private struct VideoPreviewSheet: View {
                 continuation.resume(returning: item)
             }
         }
-        if let item { player = AVPlayer(playerItem: item) }
+        if let item { player = AVPlayer(playerItem: item) } else { failed = true }
     }
 }

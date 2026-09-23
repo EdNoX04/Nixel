@@ -33,6 +33,9 @@ struct SwipeReviewView: View {
     /// Whether the current drag has gone far enough to count — flips once each way, which
     /// is what the haptic keys off.
     @State private var armed = false
+    /// True while a card is flying off. Taps in that window used to decide the same photo
+    /// twice and skip the next one.
+    @State private var deciding = false
 
     private var remaining: [PhotoAsset] { Array(assets.dropFirst(index)) }
     private var current: PhotoAsset? { remaining.first }
@@ -131,6 +134,12 @@ struct SwipeReviewView: View {
             .rotationEffect(.degrees(isTop ? Double(drag.width / 18) : 0),
                             anchor: .bottom)
             .modifier(SwipeGestureModifier(enabled: isTop, gesture: swipeGesture(asset)))
+            // Swiping has a non-gesture path for VoiceOver: the card offers Keep and Remove.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Item \(index + 1) of \(assets.count), \(Bytes.string(asset.bytes))")
+            .accessibilityHidden(!isTop)
+            .accessibilityAction(named: "Keep") { decide(asset, keep: true) }
+            .accessibilityAction(named: "Remove") { decide(asset, keep: false) }
         }
         .padding(.horizontal, Theme.Space.xl)
     }
@@ -185,12 +194,15 @@ struct SwipeReviewView: View {
             circleButton("xmark", tint: Theme.danger) {
                 if let current { decide(current, keep: false) }
             }
+            .accessibilityLabel("Remove")
             circleButton("arrow.uturn.backward", tint: .secondary, small: true) { undo() }
                 .disabled(decisions.isEmpty)
                 .opacity(decisions.isEmpty ? 0.35 : 1)
+                .accessibilityLabel("Undo")
             circleButton("heart.fill", tint: Theme.success) {
                 if let current { decide(current, keep: true) }
             }
+            .accessibilityLabel("Keep")
         }
         .padding(.vertical, Theme.Space.xl)
     }
@@ -211,6 +223,8 @@ struct SwipeReviewView: View {
     // MARK: Decisions
 
     private func decide(_ asset: PhotoAsset, keep: Bool) {
+        guard !deciding else { return }
+        deciding = true
         // Fling the card off-screen before advancing, so the motion reads as a decision.
         withAnimation(.easeIn(duration: 0.2)) {
             drag = CGSize(width: keep ? 700 : -700, height: drag.height)
@@ -228,11 +242,12 @@ struct SwipeReviewView: View {
             drag = .zero
             // The cards behind move up into place.
             withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { index += 1 }
+            deciding = false
         }
     }
 
     private func undo() {
-        guard let last = decisions.popLast() else { return }
+        guard !deciding, let last = decisions.popLast() else { return }
         selection.deselect([last.asset], in: category)
         // Bring the card back in from the side it left by. The off-screen position has to
         // render for a frame first; set and animated back in one update, the two changes

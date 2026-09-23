@@ -37,6 +37,8 @@ enum Theme {
     /// Label colour for the contacts accent — light in several palettes' dark renditions,
     /// where the system's white label on a filled button all but disappeared.
     static var onContacts: Color { readable(on: spec.contacts) }
+    static var onDanger: Color { readable(on: spec.danger) }
+    static var onSuccess: Color { readable(on: spec.success) }
 
     private static func readable(on pair: (light: UInt32, dark: UInt32)) -> Color {
         Color(uiColor: UIColor { traits in

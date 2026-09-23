@@ -59,9 +59,6 @@ struct RootView: View {
                 scanner.handleForeground(access: permissions.photos)
             case .background:
                 scanner.handleBackground()
-                if #available(iOS 26.0, *) {
-                    Task { await ModelRunner.shared.reset() }
-                }
             default:
                 break
             }

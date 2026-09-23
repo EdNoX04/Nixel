@@ -36,7 +36,9 @@ struct PhotoAsset: Identifiable, Hashable {
         isScreenshot = asset.mediaSubtypes.contains(.photoScreenshot)
     }
 
-    static func == (a: PhotoAsset, b: PhotoAsset) -> Bool { a.id == b.id }
+    // Equality is synthesised over every field, so SwiftUI redraws when a size or people
+    // count changes. It used to compare ids only, and an updated asset could be treated as
+    // unchanged — a stale people count then slipped past the Select All brake.
     func hash(into h: inout Hasher) { h.combine(id) }
 }
 
@@ -100,7 +102,10 @@ enum AssetSize {
         if #available(iOS 27.0, *) {
             if let exact = resource.dataSize { return Int64(exact) }
         }
-        if let number = resource.value(forKey: "fileSize") as? NSNumber {
+        // `value(forKey:)` on a key that doesn't exist raises an Objective-C exception
+        // Swift can't catch, so check the key is there before asking for it.
+        if resource.responds(to: NSSelectorFromString("fileSize")),
+           let number = resource.value(forKey: "fileSize") as? NSNumber {
             return number.int64Value
         }
         return 0
@@ -152,6 +157,7 @@ private final class SizeCache: @unchecked Sendable {
             at: Self.url.deletingLastPathComponent(), withIntermediateDirectories: true)
         if let data = try? JSONEncoder().encode(snapshot) {
             try? data.write(to: Self.url, options: .atomic)
+            Self.url.excludeFromBackup()
         }
     }
 }

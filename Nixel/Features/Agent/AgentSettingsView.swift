@@ -20,7 +20,7 @@ struct AgentSettingsView: View {
                 Toggle(isOn: $agent.isEnabled) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Daily scan").font(.body)
-                        Text("Once a day, while charging")
+                        Text("About once a day, usually while charging")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -28,7 +28,7 @@ struct AgentSettingsView: View {
             } header: {
                 Text("Agent")
             } footer: {
-                Text("Nixel wakes up once a day, scans what's new, sorts it with on-device intelligence, and has a cleanup ready for you.")
+                Text("About once a day, when iOS allows — usually overnight while charging — Nixel scans what's new, sorts it on device, and has a cleanup ready for you to review.")
             }
 
             Section {
@@ -49,7 +49,7 @@ struct AgentSettingsView: View {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Prepares the cleanup").font(.subheadline)
-                        Text("Ready to approve in one tap").font(.caption).foregroundStyle(.secondary)
+                        Text("Ready for you to review").font(.caption).foregroundStyle(.secondary)
                     }
                 } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.success) }
 
@@ -90,7 +90,7 @@ struct AgentSettingsView: View {
 
                 Text(agent.peopleReady
                      ? "Photos with someone in them are never swept up by Select All. Nixel only notices that a person is there — it doesn't recognise who."
-                     : "This needs Vision's neural detectors, which don't run in the Simulator. On a real iPhone, photos with people are left out of bulk selections.")
+                     : "This needs Vision's people detectors, which aren't available here. Where they are, photos with people are left out of bulk selections.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -119,7 +119,8 @@ struct AgentSettingsView: View {
                 .disabled(agent.isRunning)
             } footer: {
                 if let finding = agent.lastFinding {
-                    Text("Last found \(Bytes.string(finding.bytes)) across \(finding.duplicates + finding.screenshots + finding.videos) items.")
+                    let items = finding.duplicates + finding.screenshots + finding.videos
+                    Text("Last found \(Bytes.string(finding.bytes)) across \(items) item\(items == 1 ? "" : "s").")
                 }
             }
 
@@ -250,7 +251,7 @@ struct AgentSettingsView: View {
     private func resetAllData() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory,
                                                in: .userDomainMask)[0]
-        for name in ["featureprints.bin", "screenshot-verdicts.json", "group-insights.json",
+        for name in ["featureprints.bin", "screenshot-verdicts-v2.json", "group-insights.json",
                      "asset-sizes.json"] {
             try? FileManager.default.removeItem(at: support.appendingPathComponent(name))
         }

@@ -17,7 +17,7 @@ struct PhotoGroup: Identifiable, Hashable {
     /// Space freed if the user keeps only the best shot.
     var reclaimableBytes: Int64 { others.reduce(0) { $0 + $1.bytes } }
 
-    static func == (a: PhotoGroup, b: PhotoGroup) -> Bool { a.id == b.id }
+    // Synthesised equality, so a group trimmed after a deletion redraws.
     func hash(into h: inout Hasher) { h.combine(id) }
 }
 
@@ -58,7 +58,14 @@ actor SimilarityEngine {
     /// the library one at a time. The cap is deliberate: an unbounded task group on a
     /// 20,000 photo library would try to decode 20,000 images at once.
     func prepare(_ assets: [PhotoAsset], progress: @Sendable @escaping (Double) -> Void) async {
-        let missing = assets.filter { store.record(for: $0.id, modified: $0.phAsset.modificationDate) == nil }
+        // Anything without a usable record from this device's engine is (re)analysed —
+        // including records left by an older build that fell back to a different engine.
+        let expected = DescriptorEngine.expectedKind
+        let missing = assets.filter { asset in
+            guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate)
+            else { return true }
+            return record.vector.isEmpty || record.kind != expected
+        }
 
         trace("prepare: \(assets.count) assets, \(missing.count) need analysis")
         guard !missing.isEmpty else {
@@ -97,8 +104,12 @@ actor SimilarityEngine {
             for _ in 0..<concurrency { schedule() }
 
             while let (id, modified, descriptor, sharpness, people) = await group.next() {
-                store.store(descriptor, sharpness: sharpness, people: people,
-                            for: id, modified: modified)
+                // A failed read (a timed-out or iCloud-only original, a Vision error) is not
+                // cached: it is retried on the next scan instead of being lost for good.
+                if let descriptor {
+                    store.store(descriptor, sharpness: sharpness, people: people,
+                                for: id, modified: modified)
+                }
                 done += 1
                 // Fine-grained: on a large library a 20-photo step left the ring frozen
                 // long enough to look hung.
@@ -161,14 +172,13 @@ actor SimilarityEngine {
         // are meaningless.
         var usable: [PhotoAsset] = []
         var vectors: [[Float]] = []
-        var kind: DescriptorKind?
+        // Always this device's engine — never "whatever the oldest photo happened to use".
+        let kind = DescriptorEngine.expectedKind
 
         for asset in assets {
             guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate),
-                  !record.vector.isEmpty,
-                  record.vector.count == record.kind.dimensions else { continue }
-            if kind == nil { kind = record.kind }
-            guard record.kind == kind else { continue }
+                  record.kind == kind,
+                  record.vector.count == kind.dimensions else { continue }
             var enriched = asset
             enriched.sharpness = record.sharpness
             enriched.peopleCount = record.people
@@ -176,7 +186,7 @@ actor SimilarityEngine {
             vectors.append(record.vector)
         }
 
-        guard let kind, usable.count > 1 else { return [] }
+        guard usable.count > 1 else { return [] }
         let dimensions = vDSP_Length(kind.dimensions)
         let stride = kind.dimensions
         let similarThreshold = threshold ?? kind.similarThreshold

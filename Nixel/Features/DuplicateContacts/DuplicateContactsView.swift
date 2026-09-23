@@ -21,12 +21,20 @@ struct DuplicateContactsView: View {
                 permissionPrompt
             } else if scanner.summary(.duplicateContacts).state.isScanning {
                 ProgressView("Looking for duplicates…")
+            } else if scanner.contactError != nil {
+                ContentUnavailableView {
+                    Label("Couldn't read contacts", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text("Nothing was changed. Try again in a moment.")
+                } actions: {
+                    Button("Try Again") { scanner.scanContacts(access: permissions.contacts) }
+                }
             } else if scanner.contactGroups.isEmpty {
                 ContentUnavailableView(
                     "No duplicates",
                     systemImage: "person.2",
                     description: Text(mergedCount > 0
-                        ? "You merged \(mergedCount) duplicate\(mergedCount == 1 ? "" : "s"). Nothing else looks repeated."
+                        ? "You cleaned up \(mergedCount) duplicate card\(mergedCount == 1 ? "" : "s"). Nothing else looks repeated."
                         : "Nothing in your contacts looks repeated.")
                 )
             } else {
@@ -36,7 +44,7 @@ struct DuplicateContactsView: View {
         .sensoryFeedback(.success, trigger: cleaned)
         .navigationTitle("Duplicate Contacts")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Couldn't merge", isPresented: .constant(errorMessage != nil)) {
+        .alert("Couldn't update contacts", isPresented: .constant(errorMessage != nil)) {
             Button("OK") { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
@@ -106,7 +114,7 @@ struct DuplicateContactsView: View {
         Task {
             defer { working.remove(group.id) }
             do {
-                let removed = try ContactMerger.merge(group)
+                let removed = try await Task.detached { try ContactMerger.merge(group) }.value
                 mergedCount += removed.count
                 cleaned += 1
                 withAnimation(.snappy(duration: 0.35)) { scanner.removeContactGroup(group.id) }
@@ -121,7 +129,8 @@ struct DuplicateContactsView: View {
         Task {
             defer { working.remove(group.id) }
             do {
-                let removed = try ContactMerger.delete(group.others)
+                let others = group.others
+                let removed = try await Task.detached { try ContactMerger.delete(others) }.value
                 mergedCount += removed.count
                 cleaned += 1
                 withAnimation(.snappy(duration: 0.35)) { scanner.removeContactGroup(group.id) }
@@ -139,6 +148,20 @@ private struct ContactGroupRow: View {
     let onDeleteExtras: () -> Void
 
     @State private var expanded = false
+    @State private var confirming: Action?
+
+    private enum Action: Identifiable {
+        case merge, delete
+        var id: Self { self }
+    }
+
+    private var removedNames: String {
+        group.others.map { "“\($0.displayName)”" }.joined(separator: ", ")
+    }
+
+    private var removedCount: String {
+        group.others.count == 1 ? "1 card" : "\(group.others.count) cards"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.md) {
@@ -170,6 +193,7 @@ private struct ContactGroupRow: View {
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(expanded ? "Hide cards" : "Show cards")
             }
 
             if expanded {
@@ -200,7 +224,7 @@ private struct ContactGroupRow: View {
             }
 
             HStack(spacing: Theme.Space.sm) {
-                Button(action: onMerge) {
+                Button { confirming = .merge } label: {
                     if isWorking {
                         ProgressView().controlSize(.small).frame(maxWidth: .infinity)
                     } else {
@@ -214,13 +238,36 @@ private struct ContactGroupRow: View {
                 .tint(Theme.contacts)
                 .disabled(isWorking)
 
-                Button(role: .destructive, action: onDeleteExtras) {
+                Button(role: .destructive) { confirming = .delete } label: {
                     Text("Delete extras")
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isWorking)
+            }
+            // Contacts has no Recently Deleted and iOS asks nothing, so this is the only
+            // chance to say exactly what goes.
+            .confirmationDialog(
+                confirming == .merge ? "Merge into “\(group.mergedName)”?" : "Delete \(removedCount)?",
+                isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
+                titleVisibility: .visible,
+                presenting: confirming
+            ) { action in
+                switch action {
+                case .merge:
+                    Button("Merge and Remove \(removedCount)") { onMerge() }
+                case .delete:
+                    Button("Delete \(removedCount)", role: .destructive) { onDeleteExtras() }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: { action in
+                switch action {
+                case .merge:
+                    Text("Every phone number, email and address is kept on “\(group.mergedName)”, then \(removedNames) \(group.others.count == 1 ? "is" : "are") deleted. Notes on those cards can't be carried over. This can't be undone.")
+                case .delete:
+                    Text("\(removedNames) will be deleted without merging anything. “\(group.keeper?.displayName ?? "")” stays as it is. This can't be undone.")
+                }
             }
         }
         .padding(.vertical, 6)

@@ -19,7 +19,17 @@ final class FeaturePrintStore {
         var vector: [Float]
     }
 
-    private(set) var records: [String: Record] = [:]
+    /// Read from disk on first use rather than in `init`: the store is created with the
+    /// scan coordinator on the main thread at launch, and a large library's cache is tens
+    /// of megabytes. First use is inside the similarity actor, off the main thread.
+    private var storage: [String: Record]?
+    private var records: [String: Record] {
+        get {
+            if storage == nil { storage = [:]; load() }
+            return storage ?? [:]
+        }
+        set { storage = newValue }
+    }
     private var dirty = false
     private let url: URL
 
@@ -30,7 +40,6 @@ final class FeaturePrintStore {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         url = dir.appendingPathComponent(filename)
-        load()
     }
 
     // MARK: Access
@@ -131,6 +140,7 @@ final class FeaturePrintStore {
         }
 
         try? data.write(to: url, options: .atomic)
+        url.excludeFromBackup()
         dirty = false
     }
 }

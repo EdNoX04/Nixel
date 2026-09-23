@@ -40,6 +40,7 @@ struct AppearanceView: View {
                             row(palette, selected: theme.palette == palette)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityAddTraits(theme.palette == palette ? .isSelected : [])
                     }
                 } header: {
                     Text("Palette")
@@ -183,13 +184,13 @@ struct AppearanceView: View {
             HStack(spacing: Theme.Space.sm) {
                 Text("Scan")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(Capsule().fill(Theme.indigo.gradient))
                 Text("Delete")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onDanger)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(Capsule().fill(Theme.danger.gradient))

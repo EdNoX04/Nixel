@@ -52,17 +52,48 @@ struct AssetThumbnailView: View {
         // On the tap, not on isSelected: a "Select All" flips dozens of tiles at once and
         // should not fire dozens of haptics.
         .sensoryFeedback(.selection, trigger: taps)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isSelected && showsChrome ? .isSelected : [])
+        .accessibilityAction {
+            taps += 1
+            onTap()
+        }
         .task(id: asset.id) { load() }
         .onDisappear {
             if let id = requestID { GridThumbnailProvider.shared.cancel(id) }
+            requestID = nil
+            // Lazy grids keep off-screen cells' state; holding every decoded tile grew
+            // without bound on a large library. The image cache makes reloading cheap.
+            image = nil
         }
+    }
+
+    private var accessibilityDescription: String {
+        var parts = [asset.isVideo ? "Video" : (asset.isScreenshot ? "Screenshot" : "Photo")]
+        if asset.isVideo, asset.duration > 0 { parts.append(Self.duration(asset.duration)) }
+        if let date = asset.creationDate {
+            parts.append(date.formatted(date: .abbreviated, time: .omitted))
+        }
+        if asset.bytes > 0 { parts.append(Bytes.string(asset.bytes)) }
+        if showsBestBadge { parts.append("best shot, kept") }
+        if asset.hasPeople { parts.append("has people") }
+        return parts.joined(separator: ", ")
     }
 
     private func load() {
         guard image == nil else { return }
+        let started = Date()
         requestID = GridThumbnailProvider.shared.image(for: asset.phAsset, side: side) { result in
             guard let result else { return }
-            withAnimation(.easeOut(duration: 0.22)) { self.image = result }
+            // Fade in only what actually had to load; a cache hit on scrolling back
+            // appears instantly instead of flashing.
+            if Date().timeIntervalSince(started) < 0.05 {
+                self.image = result
+            } else {
+                withAnimation(.easeOut(duration: 0.22)) { self.image = result }
+            }
         }
     }
 
@@ -72,7 +103,8 @@ struct AssetThumbnailView: View {
             .font(.system(size: 20))
             .contentTransition(.symbolEffect(.replace))
             .symbolRenderingMode(.palette)
-            .foregroundStyle(.white, isSelected ? Theme.danger : .white.opacity(0.55))
+            .foregroundStyle(isSelected ? Theme.onDanger : .white,
+                             isSelected ? Theme.danger : .white.opacity(0.55))
             .shadow(radius: 2)
             .padding(5)
     }
@@ -82,7 +114,7 @@ struct AssetThumbnailView: View {
         if showsBestBadge {
             Text("BEST")
                 .font(.system(size: 9, weight: .heavy))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.onSuccess)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Theme.success))

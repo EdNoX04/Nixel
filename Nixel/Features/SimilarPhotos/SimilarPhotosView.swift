@@ -17,9 +17,11 @@ struct SimilarPhotosView: View {
 
     var body: some View {
         Group {
-            if groups.isEmpty {
-                ContentUnavailableView("No duplicates found", systemImage: "square.on.square",
-                                       description: Text("Nothing in your library looks like a repeat."))
+            // Blurry lives on this tab, so its card shows even when there are no groups.
+            if groups.isEmpty && !scanner.summary(.blurryPhotos).hasFindings {
+                ScanPendingView(category: .similarPhotos,
+                                emptyTitle: "No similar photos",
+                                emptyMessage: "Nothing in your library looks like a repeat.")
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Theme.Space.xl) {

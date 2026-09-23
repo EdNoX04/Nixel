@@ -141,14 +141,14 @@ struct ReviewView: View {
                     confirming = true
                 } label: {
                     if runner.isRunning {
-                        ProgressView().tint(.white).frame(maxWidth: .infinity)
+                        ProgressView().tint(Theme.onDanger).frame(maxWidth: .infinity)
                     } else {
                         Text("Delete \(selection.totalCount) Item\(selection.totalCount == 1 ? "" : "s") · \(Bytes.string(selection.totalBytes))")
                             .frame(maxWidth: .infinity)
                             .contentTransition(.numericText())
                     }
                 }
-                .buttonStyle(GlassActionButtonStyle(tint: Theme.danger, labelColour: .white))
+                .buttonStyle(GlassActionButtonStyle(tint: Theme.danger, labelColour: Theme.onDanger))
                 .disabled(runner.isRunning)
                 // On the button, so on iOS 26 the confirmation grows out of what was tapped
                 // instead of floating from the top of the screen.
@@ -175,6 +175,9 @@ struct ReviewView: View {
     }
 
     private func performDelete() async {
+        // The delete waits on iOS's own confirmation; the tab bar stays live meanwhile, so
+        // remember which tab this review belongs to.
+        let tab = navigator.selectedTab
         let assets = selection.allSelectedAssets
         let freed = assets.reduce(Int64(0)) { $0 + $1.bytes }
         let removed = await runner.delete(assets)
@@ -184,7 +187,7 @@ struct ReviewView: View {
         selection.remove(ids: removed)
         scanner.removeDeleted(ids: removed)
         scanner.refreshStorage()
-        navigator.push(.summary(CleanupSummary(count: removed.count, bytes: freed)))
+        navigator.push(.summary(CleanupSummary(count: removed.count, bytes: freed)), on: tab)
     }
 }
 

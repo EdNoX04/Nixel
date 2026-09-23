@@ -18,7 +18,10 @@ actor ScreenshotTriage {
 
     init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        cacheURL = dir.appendingPathComponent("screenshot-verdicts.json")
+        // v2: verdicts made before the keyword floor could mark a sensitive screenshot
+        // safe, so they are not carried over.
+        cacheURL = dir.appendingPathComponent("screenshot-verdicts-v2.json")
+        try? FileManager.default.removeItem(at: dir.appendingPathComponent("screenshot-verdicts.json"))
         if let data = try? Data(contentsOf: cacheURL),
            let decoded = try? JSONDecoder().decode([String: ScreenshotVerdict].self, from: data) {
             cache = decoded
@@ -51,8 +54,14 @@ actor ScreenshotTriage {
         for asset in pending {
             if Task.isCancelled { break }
 
-            if let text = await Self.recognisedText(in: asset.phAsset),
-               let verdict = await IntelligenceService.shared.triage(text: text) {
+            let text = await Self.recognisedText(in: asset.phAsset)
+            let verdict: ScreenshotVerdict? = if let text {
+                await IntelligenceService.shared.triage(text: text)
+            } else { nil }
+            // Stopped mid-read (the phone locked, a new scan began): leave it unclassified
+            // so it is tried again, rather than filing it as "Not analysed" for good.
+            if Task.isCancelled { break }
+            if let verdict {
                 cache[asset.id] = verdict
             } else {
                 // Unreadable or the model is unavailable — record a neutral verdict so we
@@ -77,6 +86,7 @@ actor ScreenshotTriage {
     private func persist() {
         if let data = try? JSONEncoder().encode(cache) {
             try? data.write(to: cacheURL, options: .atomic)
+            cacheURL.excludeFromBackup()
         }
     }
 

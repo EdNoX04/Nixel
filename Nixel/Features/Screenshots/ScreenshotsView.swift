@@ -41,8 +41,9 @@ struct ScreenshotsView: View {
     var body: some View {
         Group {
             if assets.isEmpty {
-                ContentUnavailableView("No screenshots", systemImage: "iphone.gen3",
-                                       description: Text("Nothing captured on this iPhone."))
+                ScanPendingView(category: .screenshots,
+                                emptyTitle: "No screenshots",
+                                emptyMessage: "Nothing captured on this iPhone.")
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Space.xl) {
@@ -69,7 +70,8 @@ struct ScreenshotsView: View {
                                         tint: Theme.warning,
                                         icon: "exclamationmark.triangle.fill",
                                         items: worthKeeping,
-                                        showsVerdict: true)
+                                        showsVerdict: true,
+                                        allowsSelectAll: false)
                             }
                             if !unsorted.isEmpty {
                                 section("Everything else", subtitle: nil,
@@ -77,7 +79,7 @@ struct ScreenshotsView: View {
                                         items: unsorted)
                             }
                         } else {
-                            section("\(assets.count) screenshots",
+                            section(assets.count == 1 ? "1 screenshot" : "\(assets.count) screenshots",
                                     subtitle: "Total \(Bytes.string(assets.reduce(0) { $0 + $1.bytes }))",
                                     tint: Theme.screenshots,
                                     icon: "iphone.gen3",
@@ -131,7 +133,8 @@ struct ScreenshotsView: View {
         tint: Color,
         icon: String,
         items: [PhotoAsset],
-        showsVerdict: Bool = false
+        showsVerdict: Bool = false,
+        allowsSelectAll: Bool = true
     ) -> some View {
         let allSelected = !items.isEmpty && items.allSatisfy { selection.isSelected($0.id, in: .screenshots) }
 
@@ -148,6 +151,9 @@ struct ScreenshotsView: View {
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
                 Spacer()
+                // Never on receipts, tickets and codes, and not while screenshots are still
+                // being sorted — a bulk select then would sweep up ones not yet recognised.
+                if allowsSelectAll && !scanner.isTriaging {
                 Button(allSelected ? "Deselect All" : "Select All") {
                     withAnimation(.snappy(duration: 0.25)) {
                         if allSelected {
@@ -159,6 +165,7 @@ struct ScreenshotsView: View {
                     }
                 }
                 .font(.subheadline.weight(.medium))
+                }
             }
             .padding(.horizontal, Theme.Space.lg)
 

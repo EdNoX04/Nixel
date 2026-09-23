@@ -1,54 +1,5 @@
 import SwiftUI
 
-/// The storage ring on the dashboard.
-struct StorageRing: View {
-    var snapshot: StorageSnapshot
-    /// Space the current scan believes it can free, drawn as a "will be freed" arc.
-    var reclaimable: Int64
-
-    private var usedFraction: Double { snapshot.usedFraction }
-    private var reclaimFraction: Double {
-        guard snapshot.total > 0 else { return 0 }
-        return min(usedFraction, Double(reclaimable) / Double(snapshot.total))
-    }
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 18)
-
-            // used
-            Circle()
-                .trim(from: 0, to: usedFraction)
-                .stroke(Theme.brandGradient, style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-
-            // the slice we could give back, drawn at the leading edge of "used"
-            if reclaimFraction > 0.001 {
-                Circle()
-                    .trim(from: max(0, usedFraction - reclaimFraction), to: usedFraction)
-                    .stroke(Theme.success, style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-            }
-
-            VStack(spacing: 2) {
-                Text(Bytes.string(snapshot.available))
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText())
-                Text("free")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text("of \(Bytes.string(snapshot.total))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 2)
-            }
-        }
-        .animation(.easeOut(duration: 0.5), value: usedFraction)
-        .animation(.easeOut(duration: 0.5), value: reclaimFraction)
-    }
-}
-
 /// One tappable category row on the dashboard.
 struct CategoryCard: View {
     var category: CleanupCategory

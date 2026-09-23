@@ -26,15 +26,6 @@ extension View {
         }
     }
 
-    /// A glass capsule, used for small floating chips.
-    @ViewBuilder
-    func glassCapsule() -> some View {
-        if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: .capsule)
-        } else {
-            self.background(Capsule().fill(.ultraThinMaterial))
-        }
-    }
 }
 
 /// The app's primary action button. Uses the real glass button style where available.

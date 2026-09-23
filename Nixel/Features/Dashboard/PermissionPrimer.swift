@@ -12,38 +12,39 @@ struct PermissionPrimer: View {
     var onCancel: () -> Void
 
     var body: some View {
-        VStack(spacing: Theme.Space.xl) {
-            Capsule()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 38, height: 5)
-                .padding(.top, Theme.Space.sm)
+        // Scrolls, with the buttons pinned below: at large text sizes the content is
+        // taller than the screen and Continue used to end up off it.
+        ScrollView {
+            VStack(spacing: Theme.Space.xl) {
+                NotchedMark(side: 54, colour: Theme.indigo)
+                    .padding(.top, Theme.Space.xl)
+                    .accessibilityHidden(true)
 
-            NotchedMark(side: 54, colour: Theme.indigo)
-                .padding(.top, Theme.Space.md)
+                VStack(spacing: Theme.Space.sm) {
+                    Text("Before Nixel scans")
+                        .font(.title2.weight(.bold))
+                    Text("iOS will ask for access to your photos. Here's what that's used for.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
-            VStack(spacing: Theme.Space.sm) {
-                Text("Before Nixel scans")
-                    .font(.title2.weight(.bold))
-                Text("iOS will ask for access to your photos. Here's what that's used for.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: Theme.Space.lg) {
+                    row("square.on.square", "Finds duplicates, blurry shots and large videos",
+                        "Compares small thumbnails, never full images.")
+                    row("lock.shield", "Stays on this iPhone",
+                        "Nothing is uploaded. There is no server.")
+                    row("hand.raised", "Deletes nothing on its own",
+                        "You review every item, and iOS asks you again.")
+                    row("photo.badge.checkmark", "Limited access works too",
+                        "Choose Limit Access to scan only photos you pick.")
+                }
+                .padding(.horizontal, Theme.Space.sm)
             }
-
-            VStack(alignment: .leading, spacing: Theme.Space.lg) {
-                row("square.on.square", "Finds duplicates, blurry shots and large videos",
-                    "Compares small thumbnails, never full images.")
-                row("lock.shield", "Stays on this iPhone",
-                    "Nothing is uploaded. There is no server.")
-                row("hand.raised", "Deletes nothing on its own",
-                    "You review every item, and iOS asks you again.")
-                row("photo.badge.checkmark", "Limited access works too",
-                    "Choose Limit Access to scan only photos you pick.")
-            }
-            .padding(.horizontal, Theme.Space.sm)
-
-            Spacer(minLength: 0)
-
+            .padding(.horizontal, Theme.Space.xl)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom) {
             VStack(spacing: Theme.Space.sm) {
                 Button(action: onContinue) {
                     Text("Continue")
@@ -55,11 +56,12 @@ struct PermissionPrimer: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, Theme.Space.sm)
             }
+            .padding(.horizontal, Theme.Space.xl)
+            .padding(.bottom, Theme.Space.sm)
+            .background(.bar)
         }
-        .padding(.horizontal, Theme.Space.xl)
-        .padding(.bottom, Theme.Space.lg)
         .presentationDetents([.large])
-        .presentationDragIndicator(.hidden)
+        .presentationDragIndicator(.visible)
     }
 
     private func row(_ icon: String, _ title: String, _ detail: String) -> some View {

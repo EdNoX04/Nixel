@@ -17,6 +17,7 @@ struct CleanupSummaryView: View {
     @Environment(CleanupSelection.self) private var selection
     @State private var appeared = false
     @State private var shownBytes: Int64 = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView {
@@ -39,7 +40,7 @@ struct CleanupSummaryView: View {
                     Text(Bytes.string(shownBytes))
                         .font(.system(size: 44, weight: .bold, design: .rounded))
                         .contentTransition(.numericText(value: Double(shownBytes)))
-                    Text("cleared from \(summary.count) item\(summary.count == 1 ? "" : "s")")
+                    Text("\(summary.count) item\(summary.count == 1 ? "" : "s") moved to Recently Deleted")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -55,12 +56,6 @@ struct CleanupSummaryView: View {
         // Going "back" from here would land on a review screen listing items that are
         // already gone, so the only exit is forward, to the dashboard.
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") { finish() }
-                    .font(.body.weight(.semibold))
-            }
-        }
         .safeAreaInset(edge: .bottom) {
             Button(action: finish) {
                 Text("Back to Nixel")
@@ -76,6 +71,7 @@ struct CleanupSummaryView: View {
         }
         .task {
             // Count up to the total, so the number lands rather than just appearing.
+            guard !reduceMotion else { shownBytes = summary.bytes; return }
             let steps = 14
             for step in 1...steps {
                 try? await Task.sleep(nanoseconds: 45_000_000)
@@ -107,7 +103,9 @@ struct CleanupSummaryView: View {
             Button {
                 // Opens Photos. iOS exposes no deep link to the Recently Deleted album
                 // specifically, so we land the user in Photos and tell them where to go.
-                if let url = URL(string: "photos-redirect://"), UIApplication.shared.canOpenURL(url) {
+                // `canOpenURL` returns false unless the scheme is declared in the Info.plist,
+                // which made this button silently do nothing. Opening directly works.
+                if let url = URL(string: "photos-redirect://") {
                     UIApplication.shared.open(url)
                 }
             } label: {
@@ -117,7 +115,7 @@ struct CleanupSummaryView: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
 
-            Text("Albums → Recently Deleted → Select → Delete All")
+            Text("In Photos: Recently Deleted (under Utilities) → Select → Delete All")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)

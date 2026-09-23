@@ -33,13 +33,12 @@ final class CleanupSelection {
         (assets[category] ?? []).reduce(0) { $0 + (sizes[$1] ?? 0) }
     }
 
-    var totalCount: Int {
-        assets.values.reduce(0) { $0 + $1.count }
-    }
+    /// Everything selected, counted once even if picked in two categories.
+    private var allIDs: Set<String> { assets.values.reduce(into: Set<String>()) { $0.formUnion($1) } }
 
-    var totalBytes: Int64 {
-        assets.reduce(Int64(0)) { $0 + bytes(in: $1.key) }
-    }
+    var totalCount: Int { allIDs.count }
+
+    var totalBytes: Int64 { allIDs.reduce(Int64(0)) { $0 + (sizes[$1] ?? 0) } }
 
     var isEmpty: Bool { totalCount == 0 }
 
@@ -50,7 +49,7 @@ final class CleanupSelection {
     }
 
     var allSelectedAssets: [PhotoAsset] {
-        assets.keys.flatMap { selectedItems(in: $0) }
+        allIDs.compactMap { items[$0] }
     }
 
     // MARK: Mutation
@@ -67,15 +66,15 @@ final class CleanupSelection {
         assets[category] = set
     }
 
-    /// Bulk selection, minus anything with a person in it.
+    /// Bulk selection, minus anything with a person in it and anything marked a favourite.
     ///
     /// A tap that selects two hundred photos at once is exactly where an irreplaceable
-    /// one gets swept up. Photos containing people are left for the user to pick
-    /// individually; the screens that call this say so rather than silently skipping them.
-    /// Returns how many were held back.
+    /// one gets swept up. Those are left for the user to pick individually; the screens
+    /// that call this say so rather than silently skipping them. Returns how many were
+    /// held back.
     @discardableResult
     func selectSkippingPeople(_ list: [PhotoAsset], in category: CleanupCategory) -> Int {
-        let safe = list.filter { !$0.hasPeople }
+        let safe = list.filter { !$0.hasPeople && !$0.isFavorite }
         select(safe, in: category)
         return list.count - safe.count
     }

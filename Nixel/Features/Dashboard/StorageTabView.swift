@@ -15,12 +15,15 @@ struct StorageTabView: View {
     /// A TabView keeps every tab alive, so the animations have to be told when they are
     /// off screen or they keep burning frames three tabs away.
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var isVisible: Bool { navigator.selectedTab == .storage && scenePhase == .active }
+    /// Ambient motion is decoration; with Reduce Motion on it holds still.
+    private var animates: Bool { isVisible && !reduceMotion }
 
     var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
-            AmbientBackground(isScanning: scanner.isScanning, isActive: isVisible)
+            AmbientBackground(isScanning: scanner.isScanning, isActive: animates)
 
             // Layout is fixed: nothing is inserted or removed as a scan starts and stops.
             // The first version dropped the headline and the agent card while scanning, so
@@ -41,7 +44,7 @@ struct StorageTabView: View {
                     reclaimable: scanner.totalReclaimable,
                     isScanning: scanner.isScanning,
                     progress: scanner.overallProgress,
-                    isActive: isVisible
+                    isActive: animates
                 )
                 .frame(width: 236, height: 236)
 
@@ -58,6 +61,9 @@ struct StorageTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        // The layout is a fixed, centred composition; past this size it runs out of room
+        // on smaller iPhones. Every other screen scrolls and takes any size.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .navigationTitle("Nixel")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -87,6 +93,7 @@ struct StorageTabView: View {
             if scanner.hasConsentedToScan,
                permissions.photos.canScan,
                !scanner.isScanning,
+               !scanner.stoppedByUser,
                scanner.lastScanDate == nil {
                 scanner.scanPhotos(access: permissions.photos)
             }
@@ -95,9 +102,10 @@ struct StorageTabView: View {
 
     // MARK: Headline
 
-    private enum HeadlineState { case scanning, empty, reclaimable, clean, intro }
+    private enum HeadlineState { case scanning, empty, reclaimable, clean, intro, noAccess }
 
     private var headlineState: HeadlineState {
+        if permissions.photos == .denied || permissions.photos == .restricted { return .noAccess }
         if scanner.isScanning { return .scanning }
         if scanner.lastScanDate != nil && scanner.photosAnalysed == 0 { return .empty }
         if scanner.totalReclaimable > 0 { return .reclaimable }
@@ -135,7 +143,7 @@ struct StorageTabView: View {
 
             VStack(spacing: 2) {
                 Text("Nothing to clean right now").font(.headline)
-                Text("\(scanner.photosAnalysed) photos checked")
+                Text("\(scanner.photosAnalysed) photo\(scanner.photosAnalysed == 1 ? "" : "s") checked")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .morph(visible: state == .clean)
@@ -145,6 +153,16 @@ struct StorageTabView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .morph(visible: state == .intro)
+
+            VStack(spacing: 2) {
+                Text("Photo access is off").font(.headline)
+                Text(permissions.photos == .restricted
+                     ? "It's restricted on this iPhone, so Nixel can't scan."
+                     : "Allow it in Settings to scan — Limited works too.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .morph(visible: state == .noAccess)
         }
         .animation(.easeInOut(duration: 0.35), value: state)
     }
@@ -189,7 +207,7 @@ struct StorageTabView: View {
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo))
         } else if scanner.isScanning {
-            Button(role: .cancel) { scanner.cancelScan() } label: {
+            Button(role: .cancel) { scanner.stopScan() } label: {
                 Label("Stop", systemImage: "stop.fill")
             }
             .buttonStyle(GlassActionButtonStyle(tint: Theme.indigo, prominent: false))
@@ -235,6 +253,7 @@ struct StorageTabView: View {
         }
         guard permissions.photos.canScan else { return }
         scanner.hasConsentedToScan = true
+        scanner.resumeAfterStop()
         scanner.scanPhotos(access: permissions.photos, restart: true)
     }
 
@@ -248,7 +267,7 @@ struct StorageTabView: View {
             ZStack {
                 if let date = scanner.lastScanDate {
                 HStack(spacing: 6) {
-                    Text("Last scan \(date.formatted(date: .omitted, time: .shortened)) · \(scanner.photosAnalysed) photos")
+                    Text("Last scan \(date.formatted(.relative(presentation: .named))) · \(scanner.photosAnalysed) photo\(scanner.photosAnalysed == 1 ? "" : "s")")
                         .foregroundStyle(.tertiary)
                     if headlineState == .reclaimable {
                         Button("Scan again") { Task { await startScan() } }

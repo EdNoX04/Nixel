@@ -41,8 +41,8 @@ final class Navigator {
     /// here, so each one is on the path — which is what lets `popToRoot()` reach them.
     /// (Review and the cleanup summary used to be pushed with `isPresented`, outside the
     /// path, and "Done" then had nothing to pop on the Similar, Screens and Videos tabs.)
-    func push(_ route: Route) {
-        paths[selectedTab, default: NavigationPath()].append(route)
+    func push(_ route: Route, on tab: TabItem? = nil) {
+        paths[tab ?? selectedTab, default: NavigationPath()].append(route)
     }
 
     func show(_ tab: TabItem) {
