@@ -129,6 +129,23 @@ final class ScanCoordinator {
                 state: .ready,
                 itemCount: groups.reduce(0) { $0 + $1.others.count },
                 reclaimableBytes: 0)
+            self.writeContactDiagnostics()
+        }
+    }
+
+    /// Counts only, like `scan-status.json` — lets the contact matcher be checked on a
+    /// device without reading a single name.
+    private func writeContactDiagnostics() {
+        let status: [String: Any] = [
+            "contactsVisible": contactsScanned,
+            "contactGroups": contactGroups.count,
+            "contactExtras": contactGroups.reduce(0) { $0 + $1.others.count },
+            "date": ISO8601DateFormatter().string(from: Date())
+        ]
+        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("contact-status.json")
+        if let data = try? JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: url, options: .atomic)
         }
     }
 
