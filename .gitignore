@@ -9,3 +9,10 @@ xcuserdata/
 *.xcodeproj/project.xcworkspace/
 *.xcodeproj/xcuserdata/
 build-device/
+
+# Local-only: build notes and tooling
+CLAUDE.md
+.claude/
+Tools/
+SUBMISSION_NOTE.md
+Nixel [0-9]*.xcodeproj/
