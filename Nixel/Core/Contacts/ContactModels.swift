@@ -73,6 +73,21 @@ struct ContactDuplicateGroup: Identifiable, Hashable {
     var keeper: ContactRecord? { records.first { $0.id == keeperID } }
     var others: [ContactRecord] { records.filter { $0.id != keeperID } }
 
+    /// The name the contact will carry once merged — shown on the card, so what the user
+    /// reviews is what they get.
+    var mergedName: String {
+        guard let keeper else { return "Contact" }
+        var given = keeper.contact.givenName, family = keeper.contact.familyName
+        for other in others {
+            given = ContactMatching.fuller(given, other.contact.givenName)
+            family = ContactMatching.fuller(family, other.contact.familyName)
+        }
+        if given == keeper.contact.givenName, family == keeper.contact.familyName {
+            return keeper.displayName
+        }
+        return [given, family].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
     static func == (a: ContactDuplicateGroup, b: ContactDuplicateGroup) -> Bool { a.id == b.id }
     func hash(into h: inout Hasher) { h.combine(id) }
 }
@@ -88,6 +103,20 @@ enum ContactMatching {
         let digits = raw.filter(\.isNumber)
         guard digits.count >= 7 else { return digits }
         return String(digits.suffix(10))
+    }
+
+    /// The fuller spelling of one name part, for merging: "A." gives way to "Arjun", "W"
+    /// to "Watanabe", "priya" to "Priya". A genuinely different name is left as the keeper
+    /// has it — this only ever completes a name, never replaces it.
+    static func fuller(_ kept: String, _ other: String) -> String {
+        let k = kept.trimmingCharacters(in: .whitespaces)
+        let o = other.trimmingCharacters(in: .whitespaces)
+        guard !k.isEmpty else { return o }
+        guard !o.isEmpty else { return k }
+        let stem = k.trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased()
+        if o.count > k.count, !stem.isEmpty, o.lowercased().hasPrefix(stem) { return o }
+        if k == k.lowercased(), o != o.lowercased(), o.lowercased() == k { return o }
+        return k
     }
 
     /// Case- and punctuation-insensitive name key.

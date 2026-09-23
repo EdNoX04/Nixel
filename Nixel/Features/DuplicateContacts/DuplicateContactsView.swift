@@ -144,7 +144,7 @@ private struct ContactGroupRow: View {
                 .frame(width: 42, height: 42)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(group.keeper?.displayName ?? "Contact")
+                    Text(group.mergedName)
                         .font(.headline)
                     Label("\(group.records.count) copies · \(group.reason.rawValue)",
                           systemImage: group.reason.icon)
@@ -218,7 +218,7 @@ private struct ContactGroupRow: View {
     }
 
     private var initials: String {
-        let name = group.keeper?.displayName ?? "?"
+        let name = group.mergedName
         let parts = name.split(separator: " ").prefix(2)
         let letters = parts.compactMap { $0.first }.map(String.init).joined()
         return letters.isEmpty ? "?" : letters.uppercased()

@@ -67,8 +67,10 @@ enum ContactMerger {
             if merged.jobTitle.isEmpty { merged.jobTitle = contact.jobTitle }
             if merged.nickname.isEmpty { merged.nickname = contact.nickname }
             if merged.birthday == nil { merged.birthday = contact.birthday }
-            if merged.givenName.isEmpty { merged.givenName = contact.givenName }
-            if merged.familyName.isEmpty { merged.familyName = contact.familyName }
+            // Names are completed rather than just gap-filled: "A. Mehta" merged with
+            // "Arjun Mehta" should come out as Arjun.
+            merged.givenName = ContactMatching.fuller(merged.givenName, contact.givenName)
+            merged.familyName = ContactMatching.fuller(merged.familyName, contact.familyName)
             if merged.imageData == nil, contact.imageDataAvailable {
                 merged.imageData = contact.imageData
             }
