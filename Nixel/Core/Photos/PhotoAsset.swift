@@ -78,6 +78,11 @@ enum AssetSize {
 
     private static let cache = SizeCache()
 
+    /// Writes the size cache to disk. Sizes only change with an edit, and the lookups
+    /// don't parallelise well (Photos serialises them), so a rescan that reuses them
+    /// skips the slowest step of the scan outright.
+    static func persist() { cache.save() }
+
     private static func measure(_ asset: PHAsset) -> Int64 {
         let resources = PHAssetResource.assetResources(for: asset)
         guard !resources.isEmpty else { return estimate(for: asset) }
@@ -113,10 +118,40 @@ enum AssetSize {
     }
 }
 
-/// Session cache for asset sizes, so a rescan doesn't repeat the lookups.
+/// Asset sizes keyed by identifier and modification date, kept across launches.
 private final class SizeCache: @unchecked Sendable {
+    static let fileName = "asset-sizes.json"
+
     private let lock = NSLock()
-    private var sizes: [String: Int64] = [:]
+    private var sizes: [String: Int64]
+    private var dirty = false
+
+    private static var url: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(fileName)
+    }
+
+    init() {
+        sizes = (try? Data(contentsOf: Self.url))
+            .flatMap { try? JSONDecoder().decode([String: Int64].self, from: $0) } ?? [:]
+    }
+
     func value(for key: String) -> Int64? { lock.lock(); defer { lock.unlock() }; return sizes[key] }
-    func set(_ size: Int64, for key: String) { lock.lock(); sizes[key] = size; lock.unlock() }
+
+    func set(_ size: Int64, for key: String) {
+        lock.lock(); sizes[key] = size; dirty = true; lock.unlock()
+    }
+
+    func save() {
+        lock.lock()
+        guard dirty else { lock.unlock(); return }
+        let snapshot = sizes
+        dirty = false
+        lock.unlock()
+        try? FileManager.default.createDirectory(
+            at: Self.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let data = try? JSONEncoder().encode(snapshot) {
+            try? data.write(to: Self.url, options: .atomic)
+        }
+    }
 }

@@ -507,6 +507,7 @@ final class ScanCoordinator {
         }.value
 
         trace("blurry: \(blurrySized.count)")
+        Task.detached(priority: .utility) { AssetSize.persist() }
         guard !Task.isCancelled else { return }
         blurryPhotos = blurrySized
         summaries[.blurryPhotos] = CategorySummary(

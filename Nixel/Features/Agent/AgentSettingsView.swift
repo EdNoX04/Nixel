@@ -232,7 +232,8 @@ struct AgentSettingsView: View {
     private func resetAllData() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory,
                                                in: .userDomainMask)[0]
-        for name in ["featureprints.bin", "screenshot-verdicts.json", "group-insights.json"] {
+        for name in ["featureprints.bin", "screenshot-verdicts.json", "group-insights.json",
+                     "asset-sizes.json"] {
             try? FileManager.default.removeItem(at: support.appendingPathComponent(name))
         }
         NixelAgent.shared.clear()
