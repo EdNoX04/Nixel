@@ -41,23 +41,116 @@ enum DemoLibrary {
 
     static var importedCount: Int { loadEntries().count }
 
-    /// Files in the folder that have not been imported yet. Importing is idempotent: files
-    /// already recorded in the manifest are skipped, so adding more files and importing
-    /// again never duplicates what is already in the library.
-    static func pendingFiles() -> [URL] {
-        let done = Set(loadEntries().map(\.file))
-        return availableFiles().filter { !done.contains($0.lastPathComponent) }
+    /// Where the demo library stands against the source folder, as Photos sees it.
+    struct Status: Equatable {
+        var pending = 0     // files in the folder with no asset yet
+        var surplus = 0     // extra assets for a file that already has one
+        var unknown = 0     // tracked assets whose source file can't be told
+    }
+
+    /// Re-derives the manifest from Photos and reports what an import would do.
+    /// Does a resource lookup per asset, so call it off the main actor.
+    static func status() -> Status {
+        let (kept, surplus, unknown) = reconcile()
+        saveEntries(kept + surplus + unknown)
+        let have = Set(kept.map(\.file))
+        let status = Status(
+            pending: availableFiles().filter { !have.contains($0.lastPathComponent) }.count,
+            surplus: surplus.count,
+            unknown: unknown.count)
+        writeDiagnostics(status, kept: kept, surplus: surplus)
+        return status
+    }
+
+    /// Counts plus a few demo file names, so the state can be checked from a Mac before
+    /// anything is imported or removed. Only ever names files from the demo folder.
+    private static func writeDiagnostics(_ status: Status, kept: [Entry], surplus: [Entry]) {
+        let report: [String: Any] = [
+            "files": availableFiles().count,
+            "kept": kept.count,
+            "pending": status.pending,
+            "surplus": status.surplus,
+            "unknown": status.unknown,
+            "keptSample": kept.prefix(3).map(\.file) + kept.suffix(2).map(\.file),
+            "surplusSample": surplus.prefix(3).map(\.file)
+        ]
+        let url = manifestURL.deletingLastPathComponent().appendingPathComponent("demo-status.json")
+        if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    /// Rebuilds the record of what was imported from Photos itself rather than trusting
+    /// the manifest. Every asset this importer created still carries the name of the file
+    /// it came from (`PHAssetResource.originalFilename`), so an import that ran twice, or
+    /// a first-version manifest of bare identifiers, both come out right. The first copy
+    /// of each file (in manifest order) is kept; later copies are surplus. Assets deleted
+    /// elsewhere drop out.
+    private static func reconcile() -> (kept: [Entry], surplus: [Entry], unknown: [Entry]) {
+        let ids = loadEntries().map(\.id)
+        guard !ids.isEmpty else { return ([], [], []) }
+        var byID: [String: PHAsset] = [:]
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+            .enumerateObjects { asset, _, _ in byID[asset.localIdentifier] = asset }
+
+        var kept: [Entry] = [], surplus: [Entry] = [], unknown: [Entry] = []
+        var seen = Set<String>()
+        for id in ids {
+            guard let asset = byID.removeValue(forKey: id) else { continue }
+            let name = PHAssetResource.assetResources(for: asset).first?.originalFilename ?? ""
+            let entry = Entry(file: name, id: id)
+            if name.isEmpty { unknown.append(entry) }
+            else if seen.insert(name).inserted { kept.append(entry) }
+            else { surplus.append(entry) }
+        }
+        return (kept, surplus, unknown)
+    }
+
+    enum ImportError: LocalizedError {
+        case unidentified(Int)
+        var errorDescription: String? {
+            switch self {
+            case .unidentified(let count):
+                return "\(count) demo items no longer say which file they came from, so importing could duplicate them. Remove the demo library and import again."
+            }
+        }
+    }
+
+    struct ImportResult {
+        var added = 0
+        var removed = 0
     }
 
     // MARK: Import
 
-    /// Imports every file in the source folder. Returns how many assets were created.
+    /// Brings the library to exactly one asset per file in the source folder: surplus
+    /// copies are deleted (iOS asks the user to confirm), then missing files are imported.
+    /// Only ever deletes assets recorded in this importer's own manifest.
     @discardableResult
-    static func importAll(progress: @escaping @Sendable (Int, Int) -> Void) async throws -> Int {
-        let files = pendingFiles()
-        guard !files.isEmpty else { return 0 }
+    static func importAll(
+        onRemoving: @escaping @Sendable (Int) -> Void = { _ in },
+        progress: @escaping @Sendable (Int, Int) -> Void
+    ) async throws -> ImportResult {
+        let (kept, surplus, unknown) = reconcile()
+        guard unknown.isEmpty else { throw ImportError.unidentified(unknown.count) }
+        saveEntries(kept + surplus)
 
-        var entries = loadEntries()
+        var result = ImportResult()
+        if !surplus.isEmpty {
+            onRemoving(surplus.count)
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: surplus.map(\.id), options: nil)
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.deleteAssets(assets)
+            }
+            saveEntries(kept)
+            result.removed = surplus.count
+        }
+
+        let have = Set(kept.map(\.file))
+        let files = availableFiles().filter { !have.contains($0.lastPathComponent) }
+        guard !files.isEmpty else { return result }
+
+        var entries = kept
         var done = 0
 
         // Chunked: one transaction per file is slow, and one for everything holds several
@@ -85,7 +178,8 @@ enum DemoLibrary {
             saveEntries(entries)
             progress(done, files.count)
         }
-        return done
+        result.added = done
+        return result
     }
 
     // MARK: Removal
@@ -127,16 +221,11 @@ enum DemoLibrary {
     private static func loadEntries() -> [Entry] {
         guard let data = try? Data(contentsOf: manifestURL) else { return [] }
         if let entries = try? JSONDecoder().decode([Entry].self, from: data) { return entries }
-        // First-version manifests held bare identifiers. That importer created assets in
-        // sorted filename order, and every file added since is named to sort after the
-        // originals, so the first N sorted names are exactly the N imported files.
+        // First-version manifests held bare identifiers. Their file names are left blank
+        // for `reconcile()` to read back from Photos — guessing them by position went wrong
+        // on a phone where the first version had imported the folder twice.
         if let identifiers = try? JSONDecoder().decode([String].self, from: data) {
-            let names = availableFiles().map(\.lastPathComponent)
-            let migrated = identifiers.enumerated().map { index, id in
-                Entry(file: index < names.count ? names[index] : "", id: id)
-            }
-            saveEntries(migrated)
-            return migrated
+            return identifiers.map { Entry(file: "", id: $0) }
         }
         return []
     }

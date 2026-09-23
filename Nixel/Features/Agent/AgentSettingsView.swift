@@ -7,6 +7,9 @@ import SwiftUI
 /// anything behind your back.
 struct AgentSettingsView: View {
     @State private var agent = AgentViewModel()
+    #if DEBUG
+    @State private var demoStatus: DemoLibrary.Status?
+    #endif
     @Environment(ScanCoordinator.self) private var scanner
     @Environment(PermissionCenter.self) private var permissions
 
@@ -120,23 +123,20 @@ struct AgentSettingsView: View {
 
             #if DEBUG
             Section {
-                let files = DemoLibrary.pendingFiles().count
                 Button {
                     Task { await importDemo() }
                 } label: {
                     HStack {
                         Text(agent.demoBusy ? "Importing…" : "Import demo library")
                         Spacer()
-                        if agent.demoBusy {
+                        if agent.demoBusy || demoStatus == nil {
                             ProgressView().controlSize(.small)
-                        } else {
-                            Text(files > 0 ? "\(files) new"
-                                 : DemoLibrary.importedCount > 0 ? "all imported" : "no files")
-                                .foregroundStyle(.secondary)
+                        } else if let status = demoStatus {
+                            Text(Self.describe(status)).foregroundStyle(.secondary)
                         }
                     }
                 }
-                .disabled(files == 0 || agent.demoBusy)
+                .disabled(agent.demoBusy || !(demoStatus.map { $0.pending > 0 || $0.surplus > 0 } ?? false))
 
                 Button("Remove demo library", role: .destructive) {
                     Task { await removeDemo() }
@@ -173,6 +173,9 @@ struct AgentSettingsView: View {
         .navigationTitle("Daily Agent")
         .navigationBarTitleDisplayMode(.inline)
         .task { agent.refresh() }
+        #if DEBUG
+        .task { await refreshDemoStatus() }
+        #endif
     }
 
     #if DEBUG
@@ -188,16 +191,38 @@ struct AgentSettingsView: View {
         agent.demoBusy = true
         defer { agent.demoBusy = false }
         do {
-            let count = try await DemoLibrary.importAll { done, total in
+            let result = try await DemoLibrary.importAll(onRemoving: { count in
+                Task { @MainActor in
+                    agent.seedMessage = "Removing \(count) extra demo copies — iOS will ask you to confirm."
+                }
+            }, progress: { done, total in
                 Task { @MainActor in agent.seedMessage = "Imported \(done) of \(total)…" }
-            }
-            agent.seedMessage = "Imported \(count) new items. Rescanning…"
+            })
+            var parts: [String] = []
+            if result.added > 0 { parts.append("imported \(result.added) new items") }
+            if result.removed > 0 { parts.append("removed \(result.removed) extra copies") }
+            agent.seedMessage = parts.isEmpty
+                ? "Demo library is already up to date."
+                : "Demo library: " + parts.joined(separator: ", ") + ". Rescanning…"
             permissions.refresh()
             scanner.hasConsentedToScan = true
             scanner.scanPhotos(access: permissions.photos, restart: true)
         } catch {
-            agent.seedMessage = "Import failed: \(error.localizedDescription)"
+            agent.seedMessage = "Import stopped: \(error.localizedDescription)"
         }
+        await refreshDemoStatus()
+    }
+
+    private func refreshDemoStatus() async {
+        demoStatus = await Task.detached { DemoLibrary.status() }.value
+    }
+
+    private static func describe(_ status: DemoLibrary.Status) -> String {
+        var parts: [String] = []
+        if status.pending > 0 { parts.append("\(status.pending) new") }
+        if status.surplus > 0 { parts.append("\(status.surplus) extra") }
+        if status.unknown > 0 { parts.append("\(status.unknown) unknown") }
+        return parts.isEmpty ? "up to date" : parts.joined(separator: " · ")
     }
 
     /// Deletes everything Nixel has derived from a library — descriptors, screenshot
@@ -255,6 +280,7 @@ struct AgentSettingsView: View {
         } catch {
             agent.seedMessage = "Nothing removed."
         }
+        await refreshDemoStatus()
     }
     #endif
 }
