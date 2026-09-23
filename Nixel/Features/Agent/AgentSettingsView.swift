@@ -130,7 +130,9 @@ struct AgentSettingsView: View {
                         if agent.demoBusy {
                             ProgressView().controlSize(.small)
                         } else {
-                            Text(files == 0 ? "all imported" : "\(files) new").foregroundStyle(.secondary)
+                            Text(files > 0 ? "\(files) new"
+                                 : DemoLibrary.importedCount > 0 ? "all imported" : "no files")
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }

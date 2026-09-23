@@ -62,12 +62,13 @@ actor ContactScanner {
         guard records.count > 1 else { return [] }
 
         var union = ContactUnionFind(count: records.count)
-        var reasons: [Int: Set<DuplicateReason>] = [:]
+        // Reasons are attached to a group only once every link is in: a root found
+        // mid-way can stop being the root after a later union, taking its reasons with it.
+        var links: [(Int, DuplicateReason)] = []
 
         func link(_ a: Int, _ b: Int, _ reason: DuplicateReason) {
             union.union(a, b)
-            let root = union.find(a)
-            reasons[root, default: []].insert(reason)
+            links.append((a, reason))
         }
 
         // Name buckets — only for names that are real, so a pile of "No Name" entries
@@ -99,6 +100,9 @@ actor ContactScanner {
         for (_, indices) in byEmail where indices.count > 1 {
             for i in 1..<indices.count { link(indices[0], indices[i], .sameEmail) }
         }
+
+        var reasons: [Int: Set<DuplicateReason>] = [:]
+        for (index, reason) in links { reasons[union.find(index), default: []].insert(reason) }
 
         var components: [Int: [Int]] = [:]
         for index in records.indices {
