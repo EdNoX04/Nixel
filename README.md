@@ -74,7 +74,7 @@ of 252 photos took 6.5 s, a rescan with nothing new 1.8 s, and adding 231 new ph
 | Screenshots | 18 | 18 |
 | Large videos | 11 | 11 |
 | Blurry photos | 23 | 20, no false positives |
-| Duplicate contacts | 16 groups (19 extras) | 16 groups |
+| Duplicate contacts | 16 groups (19 extras) | 16 groups (same 62 contacts, in the Simulator) |
 
 Grouping is **leader clustering**, not union-find. The first version linked any pair under
 the threshold and let union-find merge the components; on a 266-photo library that produced
