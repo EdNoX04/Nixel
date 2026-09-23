@@ -62,18 +62,19 @@ The interesting decisions here were measured rather than guessed.
 over the raw 768-float feature print, and those vectors are already unit length. So the
 prints are cached to disk as 3 KB blobs and all matching runs in Accelerate —
 `vDSP_distancesq` measured **~8.8M comparisons/sec**. Vision runs once per new photo and
-never again, which is what makes a rescan near-instant. On an iPhone 15 Pro Max a cold scan
-of 252 photos took 6.5 s, adding 231 new photos to a 477-photo library 8.4 s, and a rescan
-of those 477 with nothing new 0.8 s (file sizes are cached too, keyed by modification date).
+never again, which is what makes a rescan near-instant. On an iPhone 15 Pro Max, analysing 1,659 new photos took about 62 s of scanning (~27
+photos/s), and a rescan of the whole 2,136-photo library with nothing new takes 1.3 s. File
+sizes are cached too, keyed by modification date.
 
-**Measured on device** against a 477-photo demo library with known answers:
+**Measured on device** against a 2,136-photo demo library with known answers (every photo
+generated for the purpose; no personal data):
 
 | | Expected | Found |
 |---|---|---|
-| Similar-photo groups | 62 (163 extras) | 62 (163 extras) |
+| Similar-photo groups | 121 (322 extras) | 121 (322 extras) |
 | Screenshots | 18 | 18 |
 | Large videos | 11 | 11 |
-| Blurry photos | 23 | 20, no false positives |
+| Blurry photos | 35 | 32, no false positives (3 borderline shots missed, see Known limits) |
 | Duplicate contacts | 16 groups (19 extras) | 16 groups (19 extras) |
 
 Grouping is **leader clustering**, not union-find. The first version linked any pair under
@@ -175,7 +176,7 @@ the agent does all the work and leaves only the irreversible tap to you.
 - **Borderline blur is left alone.** Blur is measured on the previews Photos provides,
   which make mildly blurred shots read sharper. The threshold sits just below the least
   sharp real photo, so a sharp photo is never flagged, at the cost of missing borderline
-  ones (3 of 23 in the demo set).
+  ones (3 of 35 in the demo set).
 - **Screenshots need a real device** for the system flag; the Simulator cannot set it. A
   secondary signal catches re-saved screenshots by exact native resolution.
 - **Sign in with Apple needs its capability** on the provisioning profile, which a free
