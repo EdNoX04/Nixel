@@ -39,17 +39,25 @@ enum DemoLibrary {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
-    static var importedCount: Int { loadManifest().count }
+    static var importedCount: Int { loadEntries().count }
+
+    /// Files in the folder that have not been imported yet. Importing is idempotent: files
+    /// already recorded in the manifest are skipped, so adding more files and importing
+    /// again never duplicates what is already in the library.
+    static func pendingFiles() -> [URL] {
+        let done = Set(loadEntries().map(\.file))
+        return availableFiles().filter { !done.contains($0.lastPathComponent) }
+    }
 
     // MARK: Import
 
     /// Imports every file in the source folder. Returns how many assets were created.
     @discardableResult
     static func importAll(progress: @escaping @Sendable (Int, Int) -> Void) async throws -> Int {
-        let files = availableFiles()
+        let files = pendingFiles()
         guard !files.isEmpty else { return 0 }
 
-        var created = loadManifest()
+        var entries = loadEntries()
         var done = 0
 
         // Chunked: one transaction per file is slow, and one for everything holds several
@@ -68,13 +76,13 @@ enum DemoLibrary {
                     request.creationDate = captureDate(of: url)
                         ?? Date().addingTimeInterval(-Double(done + offset) * 3_600)
                     if let placeholder = request.placeholderForCreatedAsset {
-                        box.append(placeholder.localIdentifier)
+                        box.append(file: url.lastPathComponent, id: placeholder.localIdentifier)
                     }
                 }
             }
-            created += box.identifiers
+            entries += box.entries
             done += chunk.count
-            saveManifest(created)
+            saveEntries(entries)
             progress(done, files.count)
         }
         return done
@@ -86,15 +94,15 @@ enum DemoLibrary {
     /// confirmation like any other deletion in the app.
     @discardableResult
     static func removeAll() async throws -> Int {
-        let identifiers = loadManifest()
+        let identifiers = loadEntries().map(\.id)
         guard !identifiers.isEmpty else { return 0 }
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
         let count = assets.count
-        guard count > 0 else { saveManifest([]); return 0 }
+        guard count > 0 else { saveEntries([]); return 0 }
         try await PHPhotoLibrary.shared().performChanges {
             PHAssetChangeRequest.deleteAssets(assets)
         }
-        saveManifest([])
+        saveEntries([])
         return count
     }
 
@@ -111,26 +119,45 @@ enum DemoLibrary {
         return formatter.date(from: stamp)
     }
 
-    private static func loadManifest() -> [String] {
-        guard let data = try? Data(contentsOf: manifestURL) else { return [] }
-        return (try? JSONDecoder().decode([String].self, from: data)) ?? []
+    struct Entry: Codable, Equatable {
+        var file: String
+        var id: String
     }
 
-    private static func saveManifest(_ identifiers: [String]) {
+    private static func loadEntries() -> [Entry] {
+        guard let data = try? Data(contentsOf: manifestURL) else { return [] }
+        if let entries = try? JSONDecoder().decode([Entry].self, from: data) { return entries }
+        // First-version manifests held bare identifiers. That importer created assets in
+        // sorted filename order, and every file added since is named to sort after the
+        // originals, so the first N sorted names are exactly the N imported files.
+        if let identifiers = try? JSONDecoder().decode([String].self, from: data) {
+            let names = availableFiles().map(\.lastPathComponent)
+            let migrated = identifiers.enumerated().map { index, id in
+                Entry(file: index < names.count ? names[index] : "", id: id)
+            }
+            saveEntries(migrated)
+            return migrated
+        }
+        return []
+    }
+
+    private static func saveEntries(_ entries: [Entry]) {
         try? FileManager.default.createDirectory(
             at: manifestURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(identifiers) {
+        if let data = try? JSONEncoder().encode(entries) {
             try? data.write(to: manifestURL, options: .atomic)
         }
     }
 }
 
-/// Collects placeholder identifiers from inside a `performChanges` block, which runs on a
+/// Collects what was created from inside a `performChanges` block, which runs on a
 /// Photos-owned queue.
 private final class PlaceholderBox: @unchecked Sendable {
     private let lock = NSLock()
-    private var ids: [String] = []
-    func append(_ id: String) { lock.lock(); ids.append(id); lock.unlock() }
-    var identifiers: [String] { lock.lock(); defer { lock.unlock() }; return ids }
+    private var collected: [DemoLibrary.Entry] = []
+    func append(file: String, id: String) {
+        lock.lock(); collected.append(.init(file: file, id: id)); lock.unlock()
+    }
+    var entries: [DemoLibrary.Entry] { lock.lock(); defer { lock.unlock() }; return collected }
 }
 #endif

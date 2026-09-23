@@ -27,8 +27,8 @@ enum DebugContactSeed {
         var emails: [String] = []
     }
 
-    /// Ground truth: six duplicate groups (seven extras) and seven people who must not be
-    /// grouped with anyone.
+    /// Ground truth: sixteen duplicate groups (nineteen extras) and twenty-seven people who
+    /// must not be grouped with anyone.
     static let fixtures: [Spec] = [
         // 1 — same person, same number, name typed differently
         Spec(given: "Priya", family: "Raman", phones: ["+1 202 555 0147"], emails: ["priya@example.com"]),
@@ -63,7 +63,74 @@ enum DebugContactSeed {
         Spec(given: "Tom", family: "Whitfield", emails: ["tom@example.org"]),
         Spec(given: "Nina", family: "Petrova", phones: ["+1 718 555 0162"]),
         Spec(given: "Omar", family: "Haddad", emails: ["omar@example.net"]),
-        Spec(given: "Grace", family: "Kim", phones: ["+1 503 555 0125"])
+        Spec(given: "Grace", family: "Kim", phones: ["+1 503 555 0125"]),
+
+        // ---- second batch ----
+
+        // 7 — accent typed on one copy only
+        Spec(given: "Zoë", family: "Laurent", phones: ["+1 617 555 0114"]),
+        Spec(given: "Zoe", family: "Laurent", emails: ["zoe.laurent@example.com"]),
+
+        // 8 — surname and given name swapped
+        Spec(given: "Kwame", family: "Asante", phones: ["+1 470 555 0126"]),
+        Spec(given: "Asante", family: "Kwame", emails: ["kwame@example.com"]),
+
+        // 9 — work card and a quick-add, linked by number
+        Spec(given: "Elena", family: "Rossi", org: "Brightline Studio",
+             phones: ["+1 305 555 0152"], emails: ["elena.rossi@example.org"]),
+        Spec(given: "Elena", family: "R.", phones: ["305-555-0152"]),
+
+        // 10 — three copies, chained by name then email
+        Spec(given: "Marcus", family: "Webb", phones: ["+1 213 555 0139"]),
+        Spec(given: "Marcus", family: "Webb", emails: ["marcus.webb@example.net"]),
+        Spec(given: "Marc", family: "Webb", emails: ["marcus.webb@example.net"]),
+
+        // 11 — a business saved with no name, and the person behind it
+        Spec(given: "Jake", family: "Turner", org: "Turner Plumbing", phones: ["+1 480 555 0171"]),
+        Spec(given: "", family: "", org: "Turner Plumbing", phones: ["480.555.0171"]),
+
+        // 12 — first name only, same UK number in two formats
+        Spec(given: "Anika", family: "Sharma", phones: ["+44 7700 900456"]),
+        Spec(given: "Anika", family: "", phones: ["07700 900456"]),
+
+        // 13 — email capitalised differently
+        Spec(given: "Ben", family: "Carter", emails: ["Ben.Carter@Example.com"]),
+        Spec(given: "Benjamin", family: "Carter", emails: ["ben.carter@example.com"]),
+
+        // 14 — title typed into the name field
+        Spec(given: "Fatima", family: "Noor", org: "Lakeside Clinic", phones: ["+1 773 555 0164"]),
+        Spec(given: "Dr Fatima", family: "Noor", phones: ["(773) 555 0164"]),
+
+        // 15 — saved as a relationship, and again by name
+        Spec(given: "Mum", family: "", phones: ["+1 919 555 0107"]),
+        Spec(given: "Linda", family: "Hart", phones: ["919-555-0107"], emails: ["linda.hart@example.net"]),
+
+        // 16 — three copies linked by name, number and email
+        Spec(given: "Kenji", family: "Watanabe", phones: ["+1 206 555 0158"]),
+        Spec(given: "Kenji", family: "W", phones: ["206 555 0158"], emails: ["kenji@example.org"]),
+        Spec(given: "Kenji", family: "Watanabe", emails: ["kenji@example.org"]),
+
+        // Must NOT be grouped — including near-misses on names already used above
+        Spec(given: "Priya", family: "Nair", phones: ["+1 510 555 0193"]),
+        Spec(given: "Daniel", family: "Okoro", emails: ["daniel.okoro@example.net"]),
+        Spec(given: "Wei", family: "Chen", phones: ["+1 347 555 0129"]),
+        Spec(given: "Sam", family: "Rivera", emails: ["sam.rivera@example.com"]),
+        Spec(given: "Isla", family: "Fraser", phones: ["+44 7700 900789"]),
+        Spec(given: "Noah", family: "Fischer", phones: ["+1 612 555 0135"]),
+        Spec(given: "Leila", family: "Karimi", emails: ["leila@example.org"]),
+        Spec(given: "Mateo", family: "Silva", phones: ["+1 702 555 0144"]),
+        Spec(given: "Harper", family: "Quinn", emails: ["harper.quinn@example.net"]),
+        Spec(given: "Yusuf", family: "Demir", phones: ["+1 832 555 0117"]),
+        Spec(given: "Olivia", family: "Grant", org: "Grant & Co", emails: ["olivia@example.com"]),
+        Spec(given: "Ethan", family: "Brooks", phones: ["+1 614 555 0182"]),
+        Spec(given: "Amara", family: "Nwosu", emails: ["amara.nwosu@example.org"]),
+        Spec(given: "Felix", family: "Wagner", phones: ["+44 7700 900321"]),
+        Spec(given: "Inês", family: "Costa", emails: ["ines.costa@example.net"]),
+        Spec(given: "", family: "", org: "Bright Smile Dental", phones: ["+1 408 555 0156"]),
+        Spec(given: "Ruby", family: "Clarke", phones: ["+1 971 555 0103"]),
+        Spec(given: "Leo", family: "Martins", emails: ["leo.martins@example.com"]),
+        Spec(given: "Tara", family: "Singh", phones: ["+1 267 555 0161"]),
+        Spec(given: "Victor", family: "Hale", emails: ["victor.hale@example.org"])
     ]
 
     private static var manifestURL: URL {
@@ -75,13 +142,56 @@ enum DebugContactSeed {
 
     // MARK: Seed
 
-    @discardableResult
-    static func seed() throws -> Int {
-        let store = CNContactStore()
-        let request = CNSaveRequest()
-        var created: [CNMutableContact] = []
+    struct SeedResult {
+        var added = 0
+        var removed = 0
+    }
 
+    /// Brings the demo contacts to exactly one copy of each fixture.
+    ///
+    /// Matching is by content, not by position, so it copes with every state a test phone
+    /// ends up in: nothing seeded yet, a list that has since grown, Add tapped twice, or
+    /// demo contacts already merged in the app. Surplus or edited copies are removed —
+    /// only ever from this seeder's own manifest — and missing fixtures are added.
+    @discardableResult
+    static func seed() throws -> SeedResult {
+        let store = CNContactStore()
+        let keys: [CNKeyDescriptor] = [
+            CNContactIdentifierKey, CNContactGivenNameKey, CNContactFamilyNameKey,
+            CNContactOrganizationNameKey, CNContactPhoneNumbersKey, CNContactEmailAddressesKey
+        ].map { $0 as CNKeyDescriptor }
+
+        let manifest = loadManifest()
+        let existing = manifest.isEmpty ? [] : ((try? store.unifiedContacts(
+            matching: CNContact.predicateForContacts(withIdentifiers: manifest),
+            keysToFetch: keys)) ?? []).filter { manifest.contains($0.identifier) }
+
+        var unclaimed: [String: [CNContact]] = [:]
+        for contact in existing { unclaimed[signature(of: contact), default: []].append(contact) }
+
+        var kept: [String] = []
+        var missing: [Spec] = []
         for spec in fixtures {
+            let key = signature(of: spec)
+            if let match = unclaimed[key]?.first {
+                unclaimed[key]?.removeFirst()
+                kept.append(match.identifier)
+            } else {
+                missing.append(spec)
+            }
+        }
+        let surplus = unclaimed.values.flatMap { $0 }
+        guard !missing.isEmpty || !surplus.isEmpty else {
+            saveManifest(kept)
+            return SeedResult()
+        }
+
+        let request = CNSaveRequest()
+        for contact in surplus {
+            if let mutable = contact.mutableCopy() as? CNMutableContact { request.delete(mutable) }
+        }
+        var created: [CNMutableContact] = []
+        for spec in missing {
             let contact = CNMutableContact()
             contact.givenName = spec.given
             contact.familyName = spec.family
@@ -99,9 +209,27 @@ enum DebugContactSeed {
         try store.execute(request)
 
         // Identifiers are assigned on save.
-        let ids = created.map(\.identifier)
-        saveManifest(loadManifest() + ids)
-        return ids.count
+        saveManifest(kept + created.map(\.identifier))
+        return SeedResult(added: created.count, removed: surplus.count)
+    }
+
+    private static func signature(given: String, family: String, org: String,
+                                  phones: [String], emails: [String]) -> String {
+        [given, family, org,
+         phones.map(ContactMatching.normalisePhone).joined(separator: ","),
+         emails.map { $0.lowercased() }.joined(separator: ",")].joined(separator: "|")
+    }
+
+    private static func signature(of spec: Spec) -> String {
+        signature(given: spec.given, family: spec.family, org: spec.org,
+                  phones: spec.phones, emails: spec.emails)
+    }
+
+    private static func signature(of contact: CNContact) -> String {
+        signature(given: contact.givenName, family: contact.familyName,
+                  org: contact.organizationName,
+                  phones: contact.phoneNumbers.map { $0.value.stringValue },
+                  emails: contact.emailAddresses.map { $0.value as String })
     }
 
     // MARK: Remove

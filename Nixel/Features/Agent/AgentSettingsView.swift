@@ -120,7 +120,7 @@ struct AgentSettingsView: View {
 
             #if DEBUG
             Section {
-                let files = DemoLibrary.availableFiles().count
+                let files = DemoLibrary.pendingFiles().count
                 Button {
                     Task { await importDemo() }
                 } label: {
@@ -130,7 +130,7 @@ struct AgentSettingsView: View {
                         if agent.demoBusy {
                             ProgressView().controlSize(.small)
                         } else {
-                            Text("\(files) files").foregroundStyle(.secondary)
+                            Text(files == 0 ? "all imported" : "\(files) new").foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -189,7 +189,7 @@ struct AgentSettingsView: View {
             let count = try await DemoLibrary.importAll { done, total in
                 Task { @MainActor in agent.seedMessage = "Imported \(done) of \(total)…" }
             }
-            agent.seedMessage = "Imported \(count) items. Rescanning…"
+            agent.seedMessage = "Imported \(count) new items. Rescanning…"
             permissions.refresh()
             scanner.hasConsentedToScan = true
             scanner.scanPhotos(access: permissions.photos, restart: true)
@@ -230,8 +230,13 @@ struct AgentSettingsView: View {
             return
         }
         do {
-            let count = try DebugContactSeed.seed()
-            agent.seedMessage = "Added \(count) demo contacts. Rescanning…"
+            let result = try DebugContactSeed.seed()
+            var parts: [String] = []
+            if result.added > 0 { parts.append("added \(result.added)") }
+            if result.removed > 0 { parts.append("removed \(result.removed) extra demo copies") }
+            agent.seedMessage = parts.isEmpty
+                ? "Demo contacts are already up to date."
+                : "Demo contacts: " + parts.joined(separator: ", ") + ". Rescanning…"
             scanner.scanContacts(access: permissions.contacts)
         } catch {
             agent.seedMessage = "Couldn't add contacts: \(error.localizedDescription)"
