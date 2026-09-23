@@ -155,8 +155,15 @@ private struct ContactGroupRow: View {
         var id: Self { self }
     }
 
+    /// Each removed card by name plus one detail — copies usually share a name, and
+    /// "“Kenji Watanabe”, “Kenji Watanabe”" doesn't say which card is which.
     private var removedNames: String {
-        group.others.map { "“\($0.displayName)”" }.joined(separator: ", ")
+        group.others.map { record in
+            let detail = record.contact.phoneNumbers.first?.value.stringValue
+                ?? record.contact.emailAddresses.first.map { $0.value as String }
+            return detail.map { "“\(record.displayName)” (\($0))" } ?? "“\(record.displayName)”"
+        }
+        .joined(separator: ", ")
     }
 
     private var removedCount: String {

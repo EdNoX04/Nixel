@@ -242,7 +242,7 @@ final class ScanCoordinator {
             "blurry": blurryPhotos.count,
             "peopleDetectionAvailable": PeopleDetector.isAvailable,
             "photosWithPeople": peopleCount,
-            "engine": DescriptorEngine.activeKind.map { "\($0)" } ?? "none",
+            "engine": "\(DescriptorEngine.expectedKind)",
             "durationSeconds": (duration * 10).rounded() / 10,
             "date": ISO8601DateFormatter().string(from: Date())
         ]

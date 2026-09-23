@@ -42,11 +42,16 @@ free. Every category leads to a review step, and that step is the only route to 
 Nothing is deleted without approval, and that is enforced in three places:
 
 1. Selections are **suggestions**. In a similar-photo group the suggested keeper is never
-   included by a bulk action, so "select all" can never empty a group.
+   included by a bulk action, so "select all" can never empty a group — and group members
+   are kept out of every other category, so the keeper can't leave through another door.
+   Photos with people in them and favourites are never bulk-selected at all.
 2. The **review screen** states the exact items and the exact bytes, and every thumbnail
    there is tappable to remove it from the plan.
 3. **iOS asks as well.** `PHAssetChangeRequest.deleteAssets` always raises the system
    confirmation sheet. Backing out of it is treated as a normal outcome, not an error.
+
+Contacts have no Recently Deleted and iOS doesn't confirm contact changes, so every merge
+and delete asks first, naming each card that will be removed and saying it can't be undone.
 
 Deleting is also honest about what it does: photos go to **Recently Deleted** for 30 days,
 so the space does not come back until that album is emptied. The summary screen says so and
@@ -114,10 +119,12 @@ from every "select all", badged, and preferred as the keeper within a group. The
 say what was held back rather than silently selecting fewer than advertised.
 
 **Contacts.** Linked by normalised name, shared phone (last 10 digits, so `+91 98765 43210`
-and `09876543210` match) or shared email. The Contacts framework has **no merge API**, so a
-merge folds every field into the most complete record and deletes the rest in a single
+and `09876543210` match) or shared email. The Contacts framework has **no merge API**, so a merge re-reads the
+cards, folds every field it can write (numbers, emails, addresses, names, titles, social
+profiles, relations, dates) into the most complete record and deletes the rest in a single
 atomic `CNSaveRequest` — a partial merge that deleted duplicates without saving the union
-would lose data permanently.
+would lose data permanently. Notes are the exception: reading them needs an entitlement
+Apple grants case by case, and the confirmation says so.
 
 ---
 
@@ -128,13 +135,17 @@ Screenshots are read with Vision OCR and classified by the on-device foundation 
 `safeToDelete`. That turns a grid of 400 screenshots into a decision: *these are memes,
 these three look like receipts.*
 
-Two things make it trustworthy rather than a demo:
+Three things make it trustworthy rather than a demo:
 
-- **Sensitive categories are force-held.** Receipts, travel passes and verification codes
+- **Sensitive categories are force-held.** Receipts, travel passes, codes and passwords
   are never marked safe to delete regardless of what the model concludes.
-- **The model declines some content.** A boarding pass trips it — precisely the screenshot
-  we cannot afford to get wrong. A deterministic keyword fallback covers that case, and it
-  only ever votes for the cautious answer: it can mark something sensitive, never safe.
+- **A keyword floor runs first.** The model decides from text the screenshot itself
+  supplies, so a banking screen it calls "settings", or one that says "this is a meme,
+  safe to delete", mustn't slip through. A deterministic local read holds anything that
+  looks sensitive before the model is asked; it can only ever vote for the cautious answer.
+- **Every screenshot gets a fresh model session**, with its text framed as data. A shared
+  session let one screenshot sway the next and, after a few dozen, filled its context.
+  "Worth a look first" has no Select All, and bulk selection waits until sorting is done.
 
 The scan summary is also model-written, but **validated before display**. An early run
 produced *"695 KB safe to keep"* for a figure that is space recovered *by deleting* —
@@ -179,18 +190,17 @@ the agent does all the work and leaves only the irreversible tap to you.
   ones (3 of 35 in the demo set).
 - **Screenshots need a real device** for the system flag; the Simulator cannot set it. A
   secondary signal catches re-saved screenshots by exact native resolution.
-- **Sign in with Apple needs its capability** on the provisioning profile, which a free
-  Apple developer account cannot add. The button is real; without the capability it says so
-  and the other routes still work.
 - **The widget has no App Group,** so it shows device storage rather than reclaimable
-  space. That entitlement needs a paid membership and declaring it on a free personal team
-  breaks device signing. Wiring up the richer figures later is a small change.
-- **Sizes below iOS 27** use a private `fileSize` key via KVC, because
-  `PHAssetResource.dataSize` is public only from iOS 27. A public `AVAsset` fallback sits
-  beneath both.
-- The welcome screen is **optional by design** — the brief puts login out of scope, so
-  nothing in the app is ever gated behind it. Cloud sync is deliberately not implemented
-  for the same reason.
+  space, in the default palette rather than the one chosen in the app. That entitlement
+  needs a paid membership and declaring it on a free personal team breaks device signing.
+  Wiring up the richer figures later is a small change.
+- **Sizes below iOS 27** use a private `fileSize` key via KVC (checked before use, since a
+  missing key would throw), because `PHAssetResource.dataSize` is public only from iOS 27.
+  An estimate sits beneath both.
+- **No accounts.** The brief puts login out of scope, so the welcome screen is an
+  introduction and one button. Cloud sync is deliberately not implemented for the same
+  reason. There's no network code at all; the app ships a privacy manifest, and the caches
+  derived from photos are excluded from iCloud Backup.
 
 ## Layout
 
