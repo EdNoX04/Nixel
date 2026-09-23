@@ -215,6 +215,12 @@ final class ThemeStore {
 
     private let key = "appearance.palette"
     private let modeKey = "appearance.mode"
+    private let iconKey = "appearance.matchIcon"
+
+    /// Whether the Home Screen icon follows the palette. On by default.
+    var matchesIcon: Bool {
+        didSet { UserDefaults.standard.set(matchesIcon, forKey: iconKey) }
+    }
 
     var palette: AppPalette {
         didSet {
@@ -234,5 +240,6 @@ final class ThemeStore {
         AppPalette.current = resolved
         mode = UserDefaults.standard.string(forKey: modeKey)
             .flatMap(AppearanceMode.init(rawValue:)) ?? .system
+        matchesIcon = UserDefaults.standard.object(forKey: iconKey) as? Bool ?? true
     }
 }

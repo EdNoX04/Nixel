@@ -30,9 +30,13 @@ enum DemoLibrary {
     private static let imageTypes: Set<String> = ["jpg", "jpeg", "png", "heic"]
     private static let videoTypes: Set<String> = ["mp4", "mov", "m4v"]
 
+    /// Every media file in the folder and its subfolders. Batches can be pushed as whole
+    /// folders, which is far faster than copying a couple of thousand files one by one.
     static func availableFiles() -> [URL] {
-        let contents = (try? FileManager.default.contentsOfDirectory(
-            at: sourceFolder, includingPropertiesForKeys: nil)) ?? []
+        let walker = FileManager.default.enumerator(
+            at: sourceFolder, includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles, .skipsPackageDescendants])
+        let contents = (walker?.allObjects as? [URL]) ?? []
         return contents
             .filter { imageTypes.contains($0.pathExtension.lowercased())
                    || videoTypes.contains($0.pathExtension.lowercased()) }

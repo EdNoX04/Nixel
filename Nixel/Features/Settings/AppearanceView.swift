@@ -8,6 +8,7 @@ import SwiftUI
 struct AppearanceView: View {
     @Environment(ThemeStore.self) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         @Bindable var theme = theme
@@ -48,6 +49,27 @@ struct AppearanceView: View {
                 }
 
                 Section {
+                    HStack(spacing: Theme.Space.lg) {
+                        iconPreview(theme.matchesIcon ? theme.palette : .forest)
+                        Toggle(isOn: $theme.matchesIcon) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Match palette")
+                                Text("\((theme.matchesIcon ? theme.palette : .forest).title) icon")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .contentTransition(.opacity)
+                            }
+                        }
+                        .tint(Theme.indigo)
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: theme.matchesIcon)
+                } header: {
+                    Text("App Icon")
+                } footer: {
+                    Text("The Home Screen icon changes when you close this screen. iOS confirms each change with a short alert.")
+                }
+
+                Section {
                     preview
                         // Palette colours are dynamic UIColors that SwiftUI's diff treats as
                         // unchanged, so an in-place re-render leaves the old palette showing.
@@ -61,12 +83,32 @@ struct AppearanceView: View {
             }
             .navigationTitle("Appearance")
             .navigationBarTitleDisplayMode(.inline)
+            // Applied once, on the way out, instead of per palette tap.
+            .onDisappear { theme.applyIcon() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }.font(.body.weight(.semibold))
                 }
             }
         }
+    }
+
+    /// The palette's app icon, drawn with the same colours as the icon file.
+    private func iconPreview(_ palette: AppPalette) -> some View {
+        let colours = colorScheme == .dark ? palette.iconColours.dark : palette.iconColours.light
+        return RoundedRectangle(cornerRadius: 13, style: .continuous)
+            .fill(colours.ground)
+            .frame(width: 58, height: 58)
+            .overlay {
+                NotchedMark(side: 24, colour: colours.mark)
+                    .offset(x: 2, y: 2)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
+            )
+            .id(palette)
+            .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 
     private func row(_ palette: AppPalette, selected: Bool) -> some View {

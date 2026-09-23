@@ -63,8 +63,8 @@ over the raw 768-float feature print, and those vectors are already unit length.
 prints are cached to disk as 3 KB blobs and all matching runs in Accelerate —
 `vDSP_distancesq` measured **~8.8M comparisons/sec**. Vision runs once per new photo and
 never again, which is what makes a rescan near-instant. On an iPhone 15 Pro Max a cold scan
-of 252 photos took 6.5 s, a rescan with nothing new 1.8 s, and adding 231 new photos to a
-477-photo library 8.4 s.
+of 252 photos took 6.5 s, adding 231 new photos to a 477-photo library 8.4 s, and a rescan
+of those 477 with nothing new 0.8 s (file sizes are cached too, keyed by modification date).
 
 **Measured on device** against a 477-photo demo library with known answers:
 
@@ -74,7 +74,7 @@ of 252 photos took 6.5 s, a rescan with nothing new 1.8 s, and adding 231 new ph
 | Screenshots | 18 | 18 |
 | Large videos | 11 | 11 |
 | Blurry photos | 23 | 20, no false positives |
-| Duplicate contacts | 16 groups (19 extras) | 16 groups (same 62 contacts, in the Simulator) |
+| Duplicate contacts | 16 groups (19 extras) | 16 groups (19 extras) |
 
 Grouping is **leader clustering**, not union-find. The first version linked any pair under
 the threshold and let union-find merge the components; on a 266-photo library that produced
@@ -88,7 +88,8 @@ Thresholds were measured on that 266-photo library, not guessed — and the meas
 something useful: **neither engine separates perfectly at realistic size.** The worst true
 pair and the nearest unrelated pair overlap, because real libraries genuinely contain
 similar-looking unrelated photos. So both thresholds sit *below the nearest unrelated pair*
-rather than above the furthest true one (Vision 0.26 against an across-min of 0.299).
+rather than above the furthest true one. On the phone that put the Vision threshold at
+**0.28**: the loosest true pair measured 0.273, the nearest unrelated pair 0.347.
 Missing a duplicate costs nothing; inventing one puts a stranger's photo in a delete list.
 
 **Blurry photos.** Variance of the Laplacian — the textbook measure — was implemented first
@@ -142,6 +143,14 @@ or invented figures now fall back to a deterministic sentence.
 On a device without Apple Intelligence, every screen still works; screenshots just aren't
 categorised.
 
+## Look and feel
+
+Five palettes (Forest, Mocha, Buttermilk, Blush, Twinkle), each tuned separately for light
+and dark. Switching palette or appearance cross-fades the whole window, including the tab
+bar and navigation bars. The Home Screen icon follows the palette: each one has its own
+light and dark icon, recoloured from the same artwork, and the change is applied once when
+Appearance closes, because iOS confirms every icon change with an alert.
+
 ## The daily agent
 
 An optional `BGProcessingTask` that wakes once a day while charging, scans what's new,
@@ -159,6 +168,10 @@ the agent does all the work and leaves only the irreversible tap to you.
   `Failed to create espresso context`. That affects feature prints *and* face detection, so
   in the Simulator the app falls back to a pure-CPU descriptor and reports the people safeguard
   as unavailable rather than silently returning "no people". On device both work.
+- **Very heavy blur can read as sharp.** The focus measure compares an image with a blurred
+  copy of itself. Past a point, a near-flat image's 8-bit banding looks like edges and the
+  score climbs back up, so an extremely out-of-focus shot can be missed. Moderate missed-focus
+  blur, the common case, is caught.
 - **Borderline blur is left alone.** Blur is measured on the previews Photos provides,
   which make mildly blurred shots read sharper. The threshold sits just below the least
   sharp real photo, so a sharp photo is never flagged, at the cost of missing borderline
