@@ -11,13 +11,16 @@ Everything runs on the device. No photo, screenshot or contact is ever uploaded.
 ## Running it
 
 ```bash
-brew install xcodegen      # only if you don't have it
-xcodegen generate
 open Nixel.xcodeproj
 ```
 
-The Xcode project is generated from `project.yml` — edit that, not the `.xcodeproj`.
-Deployment target is iOS 17. Select your team under Signing & Capabilities and run.
+The project is committed, so that is all you need. Deployment target is iOS 17. Under
+Signing & Capabilities, pick your team for both targets (Nixel and NixelWidget) and run on
+an iPhone. If Xcode says the bundle ID is unavailable, change `com.nilabha` to your own
+prefix in both targets. The widget's ID must stay `<app ID>.widget`.
+
+The `.xcodeproj` is generated from `project.yml` by [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+To change project settings, edit `project.yml` and run `xcodegen generate`.
 
 > **Test on a real iPhone.** Two things do not work in the Simulator: Vision's neural
 > matcher (see *Known limits*) and the system screenshot flag. Both are fine on device.
@@ -168,7 +171,8 @@ exactly inverted, on the one surface where a wrong number destroys trust. Invert
 or invented figures now fall back to a deterministic sentence.
 
 On a device without Apple Intelligence, every screen still works; screenshots just aren't
-categorised.
+categorised and groups aren't named, and those screens say why (for example, "It needs an
+iPhone 15 Pro or newer").
 
 ## Look and feel
 
@@ -223,7 +227,7 @@ the agent does all the work and leaves only the irreversible tap to you.
 Nixel/
 ├── App/            entry point, root view, navigation
 ├── Core/
-│   ├── Account/    optional local identity
+│   ├── Account/    first-run welcome state (no sign-in)
 │   ├── Agent/      daily background task
 │   ├── Cleanup/    selection, deletion, scan coordination
 │   ├── Contacts/   duplicate matching and merging

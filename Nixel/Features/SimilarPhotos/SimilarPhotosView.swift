@@ -57,8 +57,10 @@ struct SimilarPhotosView: View {
         .toolbar {
             if !groups.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Select All Extras", action: selectAllExtras)
+                    Button(allExtrasSelected ? "Deselect Extras" : "Select All Extras",
+                           action: selectAllExtras)
                         .font(.subheadline)
+                        .contentTransition(.identity)
                 }
             }
         }
@@ -105,9 +107,20 @@ struct SimilarPhotosView: View {
         }
     }
 
+    private var allExtrasSelected: Bool {
+        selection.isBulkSelected(groups.flatMap(\.others), in: .similarPhotos)
+    }
+
+    /// Toggles, like every other Select All: once everything it may take is selected, the
+    /// same button clears the extras again.
     private func selectAllExtras() {
         withAnimation(.snappy(duration: 0.25)) {
-            heldBack = selection.selectSkippingPeople(groups.flatMap(\.others), in: .similarPhotos)
+            if allExtrasSelected {
+                selection.deselect(groups.flatMap(\.others), in: .similarPhotos)
+                heldBack = 0
+            } else {
+                heldBack = selection.selectSkippingPeople(groups.flatMap(\.others), in: .similarPhotos)
+            }
         }
     }
 }
