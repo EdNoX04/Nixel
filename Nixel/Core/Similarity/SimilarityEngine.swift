@@ -81,10 +81,15 @@ actor SimilarityEngine {
 
         // Warm the models once, serially, instead of cold-loading them in parallel.
         await VisionWork.warmUp()
+        #if DEBUG
+        AnalysisTiming.reset()
+        let passStarted = CFAbsoluteTimeGetCurrent()
+        #endif
 
         // Image loading is I/O and suspends properly, so it can run wider than the Vision
-        // queue behind it; the queue caps the neural work at two regardless.
-        let concurrency = 6
+        // queue behind it; the queue caps the neural work at three regardless. Eight in
+        // flight keeps that queue fed: at six, loading was what held the pass back.
+        let concurrency = 8
         var done = 0
         let saveEvery = max(150, missing.count / 10)
 
@@ -130,6 +135,10 @@ actor SimilarityEngine {
             }
         }
 
+        #if DEBUG
+        trace(String(format: "prepare: analysed in %.1fs; ", CFAbsoluteTimeGetCurrent() - passStarted)
+              + AnalysisTiming.summary)
+        #endif
         store.prune(keeping: Set(assets.map(\.id)))
         store.save()
     }
@@ -378,14 +387,25 @@ actor SimilarityEngine {
     /// One decode, two measurements. Loading the thumbnail is the expensive part, so
     /// sharpness is computed from the same image rather than fetching it twice.
     nonisolated static func analyse(_ asset: PHAsset) async -> (Descriptor?, Double, Int) {
+        #if DEBUG
+        let started = CFAbsoluteTimeGetCurrent()
+        #endif
         guard let cgImage = await analysisImage(for: asset) else { return (nil, 0, 0) }
+        #if DEBUG
+        let loaded = CFAbsoluteTimeGetCurrent()
+        #endif
+        // Sharpness is plain CPU arithmetic, so it runs alongside the neural work instead of
+        // holding one of the Vision queue's two slots.
+        async let sharpness = Sharpness.measure(cgImage) ?? 0
         // Suspends while Vision runs on its own queue; never blocks a cooperative thread.
-        return await VisionWork.run {
-            let descriptor = DescriptorEngine.compute(for: cgImage)
-            let sharpness = Sharpness.measure(cgImage) ?? 0
-            let people = PeopleDetector.count(in: cgImage)
-            return (descriptor, sharpness, people)
+        let (descriptor, people) = await VisionWork.run {
+            DescriptorEngine.computeWithPeople(for: cgImage)
         }
+        let result = (descriptor, await sharpness, people)
+        #if DEBUG
+        AnalysisTiming.add(load: loaded - started, analysis: CFAbsoluteTimeGetCurrent() - loaded)
+        #endif
+        return result
     }
 }
 

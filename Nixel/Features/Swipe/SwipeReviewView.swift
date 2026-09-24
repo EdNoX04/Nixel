@@ -182,7 +182,11 @@ struct SwipeReviewView: View {
                     decide(asset, keep: (abs(value.translation.width) > commitDistance
                                          ? value.translation.width : projected) > 0)
                 } else {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) { drag = .zero }
+                    // Settles back without the overshoot when Reduce Motion is on.
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.2)
+                                               : .spring(response: 0.35, dampingFraction: 0.72)) {
+                        drag = .zero
+                    }
                 }
                 armed = false
             }

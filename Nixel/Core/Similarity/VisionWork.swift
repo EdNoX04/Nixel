@@ -16,15 +16,17 @@ import CoreGraphics
 /// either: cancellation cannot interrupt synchronous code, so the stuck threads stayed stuck
 /// and a restarted scan could not even fetch its screenshots.
 ///
-/// Running Vision on its own queue keeps the cooperative pool free. Two at a time is
-/// deliberate: the Neural Engine is one shared piece of hardware, so wider concurrency just
-/// queues inside it while making contention worse.
+/// Running Vision on its own queue keeps the cooperative pool free. The width is measured,
+/// not guessed: the Neural Engine is one shared piece of hardware, so past a point more
+/// workers just queue inside it. On an iPhone 15 Pro Max (2,136-photo cold scan) three
+/// workers beat two by about 8% (24.5 s vs 26.6 s) with identical results and no
+/// main-thread stalls; the models are warmed serially first, so they never cold-load at once.
 enum VisionWork {
 
     static let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "nixel.vision"
-        queue.maxConcurrentOperationCount = 2
+        queue.maxConcurrentOperationCount = 3
         queue.qualityOfService = .userInitiated
         return queue
     }()
@@ -69,3 +71,31 @@ enum VisionWork {
         return context?.makeImage()
     }
 }
+
+#if DEBUG
+/// Where first-time analysis spends its time, written to the scan trace after each pass.
+/// Debug builds only; used to tune the pipeline on the phone.
+enum AnalysisTiming {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var load: Double = 0
+    nonisolated(unsafe) private static var analysis: Double = 0
+    nonisolated(unsafe) private static var count = 0
+
+    static func reset() {
+        lock.lock(); load = 0; analysis = 0; count = 0; lock.unlock()
+    }
+
+    static func add(load l: Double, analysis a: Double) {
+        lock.lock(); load += l; analysis += a; count += 1; lock.unlock()
+    }
+
+    /// Mean milliseconds per photo spent loading the thumbnail and analysing it.
+    static var summary: String {
+        lock.lock(); defer { lock.unlock() }
+        guard count > 0 else { return "no photos analysed" }
+        let n = Double(count)
+        return String(format: "%d photos, load %.1f ms, analysis %.1f ms (mean per photo)",
+                      count, load / n * 1000, analysis / n * 1000)
+    }
+}
+#endif

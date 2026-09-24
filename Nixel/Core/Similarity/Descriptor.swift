@@ -113,6 +113,34 @@ enum DescriptorEngine {
         }
     }
 
+    /// A descriptor and a people count from one pass over the image.
+    ///
+    /// The feature print and face detection share a single `VNImageRequestHandler`, so
+    /// Vision prepares the image once instead of twice for every new photo. If the shared
+    /// pass fails, each is retried on its own, so a failure in one never costs the other.
+    static func computeWithPeople(for cgImage: CGImage) -> (Descriptor?, Int) {
+        guard expectedKind == .vision else {
+            return (compute(for: cgImage), PeopleDetector.count(in: cgImage))
+        }
+        lock.lock(); resolvedKind = .vision; lock.unlock()
+
+        let printRequest = VNGenerateImageFeaturePrintRequest()
+        printRequest.imageCropAndScaleOption = .scaleFill
+        let faceRequest = VNDetectFaceRectanglesRequest()
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        do {
+            try handler.perform([printRequest, faceRequest])
+        } catch {
+            return (compute(for: cgImage), PeopleDetector.count(in: cgImage))
+        }
+        guard let observation = printRequest.results?.first as? VNFeaturePrintObservation else {
+            return (compute(for: cgImage), PeopleDetector.count(in: cgImage))
+        }
+        let vector = observation.data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+        let people = PeopleDetector.count(faces: faceRequest.results?.count ?? 0, using: handler)
+        return (Descriptor(kind: .vision, vector: vector), people)
+    }
+
     // MARK: Vision
 
     private static func visionPrint(for cgImage: CGImage) -> [Float]? {

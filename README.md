@@ -67,9 +67,11 @@ The interesting decisions here were measured rather than guessed.
 over the raw 768-float feature print, and those vectors are already unit length. So the
 prints are cached to disk as 3 KB blobs and all matching runs in Accelerate —
 `vDSP_distancesq` measured **~8.8M comparisons/sec**. Vision runs once per new photo and
-never again, which is what makes a rescan near-instant. On an iPhone 15 Pro Max, analysing 1,659 new photos took about 62 s of scanning (~27
-photos/s), and a rescan of the whole 2,136-photo library with nothing new takes 1.3 s. File
-sizes are cached too, keyed by modification date.
+never again, which is what makes a rescan near-instant. Each new photo is decoded once, and
+the feature print and face check share one Vision pass. On an iPhone 15 Pro Max, a
+first-time scan of the whole 2,136-photo library takes about 25 s (~87 photos/s, down from
+39 s before that change), and a rescan with nothing new takes 1.3 s. File sizes are cached
+too, keyed by modification date.
 
 **Measured on device** against a 2,136-photo demo library with known answers (every photo
 generated for the purpose; no personal data):

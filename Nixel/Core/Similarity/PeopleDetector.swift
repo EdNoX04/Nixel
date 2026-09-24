@@ -67,7 +67,13 @@ enum PeopleDetector {
             return isExpected ? unknown : 0
         }
 
-        let faces = faceRequest.results?.count ?? 0
+        return count(faces: faceRequest.results?.count ?? 0, using: handler)
+    }
+
+    /// Finishes a count whose face pass already ran on `handler`: the faces found, or, when
+    /// there were none, the bodies. Lets a caller fold face detection into a handler it is
+    /// already performing, so the image is prepared once.
+    static func count(faces: Int, using handler: VNImageRequestHandler) -> Int {
         if faces > 0 { return faces }
 
         // No face — try for a body. Catches people turned away or far from the camera.
