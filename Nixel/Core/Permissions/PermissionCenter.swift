@@ -67,8 +67,13 @@ final class PermissionCenter {
     /// Let a "limited access" user change which photos we can see.
     /// We suppress iOS's own periodic prompt via `PHPhotoLibraryPreventAutomaticLimitedAccessAlert`
     /// in Info.plist, so this is the one place that picker is offered — on purpose, not at random.
-    func presentLimitedPicker(from controller: UIViewController) {
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: controller)
+    /// `onDone` runs on the main actor once the picker closes, so the caller can rescan
+    /// the photos that are now shared.
+    func presentLimitedPicker(from controller: UIViewController,
+                              onDone: (@MainActor () -> Void)? = nil) {
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: controller) { _ in
+            Task { @MainActor in onDone?() }
+        }
     }
 
     func openSettings() {

@@ -74,9 +74,25 @@ final class CleanupSelection {
     /// held back.
     @discardableResult
     func selectSkippingPeople(_ list: [PhotoAsset], in category: CleanupCategory) -> Int {
-        let safe = list.filter { !$0.mightHavePeople && !$0.isFavorite }
+        let safe = Self.bulkSelectable(list)
         select(safe, in: category)
         return list.count - safe.count
+    }
+
+    /// What a bulk action may take from `list`: everything but photos that might show a
+    /// person and favourites.
+    static func bulkSelectable(_ list: [PhotoAsset]) -> [PhotoAsset] {
+        list.filter { !$0.mightHavePeople && !$0.isFavorite }
+    }
+
+    /// Whether "Select All" over `list` has been done, judged against what it is allowed to
+    /// take. Judged against the whole list, a section with one person in it never counted
+    /// as selected, so its button stayed on "Select All" and could never deselect. When
+    /// nothing can be bulk-selected, it means the user picked every item by hand.
+    func isBulkSelected(_ list: [PhotoAsset], in category: CleanupCategory) -> Bool {
+        let bulk = Self.bulkSelectable(list)
+        let target = bulk.isEmpty ? list : bulk
+        return !target.isEmpty && target.allSatisfy { isSelected($0.id, in: category) }
     }
 
     func select(_ list: [PhotoAsset], in category: CleanupCategory) {

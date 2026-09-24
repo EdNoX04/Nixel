@@ -72,8 +72,9 @@ struct SimilarPhotosView: View {
             GridSectionHeader(
                 title: scanner.groupLabels[group.id] ?? "\(group.assets.count) similar",
                 subtitle: "\(group.assets.count) shots · keep 1 · free \(Bytes.string(group.reclaimableBytes))",
-                allSelected: group.others.allSatisfy { selection.isSelected($0.id, in: .similarPhotos) },
-                onToggleAll: { toggleGroup(group) }
+                allSelected: selection.isBulkSelected(group.others, in: .similarPhotos),
+                onToggleAll: { toggleGroup(group) },
+                pickByHand: CleanupSelection.bulkSelectable(group.others).isEmpty
             )
 
             LazyVGrid(columns: columns, spacing: 4) {
@@ -96,7 +97,7 @@ struct SimilarPhotosView: View {
 
     private func toggleGroup(_ group: PhotoGroup) {
         let extras = group.others
-        if extras.allSatisfy({ selection.isSelected($0.id, in: .similarPhotos) }) {
+        if selection.isBulkSelected(extras, in: .similarPhotos) {
             selection.deselect(extras, in: .similarPhotos)
             heldBack = 0
         } else {

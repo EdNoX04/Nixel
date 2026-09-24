@@ -271,12 +271,8 @@ struct StorageTabView: View {
                  : "No photos to check")
                 .font(.headline)
             if permissions.photos == .limited {
-                Button("Choose Photos") {
-                    if let controller = UIApplication.topViewController() {
-                        permissions.presentLimitedPicker(from: controller)
-                    }
-                }
-                .font(.caption.weight(.semibold))
+                Button("Choose Photos", action: choosePhotos)
+                    .font(.caption.weight(.semibold))
             } else {
                 Text("Your library is empty.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -375,6 +371,33 @@ struct StorageTabView: View {
                 }
                 Text(" ").font(.caption2).hidden()
             }
+            // Limited access is a supported mode, not an error: say what Nixel can see and
+            // offer to widen it. Only appears or goes when the permission itself changes.
+            if permissions.photos == .limited {
+                limitedAccessLine
+            }
+        }
+    }
+
+    private var limitedAccessLine: some View {
+        let label = Label("Limited access · only the photos you've shared",
+                          systemImage: "photo.badge.checkmark")
+            .foregroundStyle(.secondary)
+        let button = Button("Choose Photos", action: choosePhotos).fontWeight(.semibold)
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { label; button }
+            VStack(spacing: 2) { label.multilineTextAlignment(.center); button }
+        }
+        .font(.caption2)
+        .padding(.horizontal, Theme.Space.lg)
+    }
+
+    /// iOS's picker for which photos Nixel may see. What was picked is scanned straight
+    /// away; the fingerprint cache keeps that quick.
+    private func choosePhotos() {
+        guard let controller = UIApplication.topViewController() else { return }
+        permissions.presentLimitedPicker(from: controller) {
+            Task { await startScan() }
         }
     }
 }

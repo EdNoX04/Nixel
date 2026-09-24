@@ -140,7 +140,8 @@ struct ScreenshotsView: View {
         showsVerdict: Bool = false,
         allowsSelectAll: Bool = true
     ) -> some View {
-        let allSelected = !items.isEmpty && items.allSatisfy { selection.isSelected($0.id, in: .screenshots) }
+        let allSelected = selection.isBulkSelected(items, in: .screenshots)
+        let pickByHand = CleanupSelection.bulkSelectable(items).isEmpty
 
         VStack(alignment: .leading, spacing: Theme.Space.sm) {
             HStack(alignment: .firstTextBaseline) {
@@ -157,7 +158,9 @@ struct ScreenshotsView: View {
                 Spacer()
                 // Never on receipts, tickets and codes, and not while screenshots are still
                 // being sorted — a bulk select then would sweep up ones not yet recognised.
-                if allowsSelectAll && !scanner.isTriaging {
+                if allowsSelectAll && !scanner.isTriaging && pickByHand && !allSelected {
+                    PickByHandLabel()
+                } else if allowsSelectAll && !scanner.isTriaging {
                 Button(allSelected ? "Deselect All" : "Select All") {
                     withAnimation(.snappy(duration: 0.25)) {
                         if allSelected {

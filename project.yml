@@ -65,6 +65,10 @@ targets:
     dependencies:
       - target: NixelWidget
         embed: true
+      # Linked explicitly: the limited-library picker is an Objective-C category method, so
+      # no symbol ties the app to PhotosUI and the linker drops the auto-link. Without it,
+      # "Choose Photos" crashed with an unrecognized selector on iOS 18.
+      - sdk: PhotosUI.framework
     info:
       path: Nixel/Resources/Info.plist
       properties:

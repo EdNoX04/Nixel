@@ -57,6 +57,19 @@ Deleting is also honest about what it does: photos go to **Recently Deleted** fo
 so the space does not come back until that album is emptied. The summary screen says so and
 links to Photos, rather than claiming storage that hasn't actually been returned.
 
+### Permissions
+
+Nothing is asked at launch. Photos access is requested only when the user taps Scan, after a
+short screen that explains what is read and that Limited works too. Contacts access is
+requested only on the Contacts tab.
+
+- **Denied or restricted:** every tab says access is off and offers Open Settings, instead
+  of showing an empty "nothing found".
+- **Limited:** Nixel scans what was shared and says so: "Limited access · only the photos
+  you've shared", with Choose Photos to change the selection. On iOS 18 the same applies to
+  Contacts. The picked items are scanned straight away, and the cache keeps that quick.
+- Access changed in Settings is picked up when the app comes back to the foreground.
+
 ---
 
 ## How the matching works

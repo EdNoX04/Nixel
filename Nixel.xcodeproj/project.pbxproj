@@ -23,6 +23,7 @@
 		272A4CDD1454550FB64F0349 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4F4743DA725EDFE2417AFE6 /* Assets.xcassets */; };
 		2B87927FCFAF1883618A4E05 /* AppearanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ACFA5ED4DB476EDBC76DD97 /* AppearanceView.swift */; };
 		2E3B7637C2ABBC81234DCCF1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A680B6D6F72134FE24C3EB22 /* PrivacyInfo.xcprivacy */; };
+		30DA44BF9F24D86DBA4F3EDA /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A85E70E16458A1B7860664F2 /* PhotosUI.framework */; };
 		357E1216FC3EE4103D271B6C /* DeviceStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424490F0A6734A292F12B042 /* DeviceStorage.swift */; };
 		378706EC5719ADEE9A8515E8 /* PixelDriftView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD3167DD3B62E991B442524 /* PixelDriftView.swift */; };
 		3991C1FA72EDB3761640C82F /* LargeVideosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 806297AE7D57A6FC328EB271 /* LargeVideosView.swift */; };
@@ -154,6 +155,7 @@
 		A4F4743DA725EDFE2417AFE6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A66FE20F9B12C83C6DD02156 /* StorageTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTabView.swift; sourceTree = "<group>"; };
 		A680B6D6F72134FE24C3EB22 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A85E70E16458A1B7860664F2 /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
 		AAFB6955AF610BA4ACCAB90D /* CleanupRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupRunner.swift; sourceTree = "<group>"; };
 		ADA113D5C24F265EFBA768B5 /* PhotoInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoInsight.swift; sourceTree = "<group>"; };
 		B8B27D6902B231135769463E /* CategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDetailView.swift; sourceTree = "<group>"; };
@@ -177,6 +179,17 @@
 		F482D96B25A1CFF0CDED0606 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
 		F82D90998DE69124E1E4AC92 /* LocalCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0E7C26395CA726876ED0B67B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				30DA44BF9F24D86DBA4F3EDA /* PhotosUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		071C382A0097DD78C456BF9F /* DuplicateContacts */ = {
@@ -376,6 +389,7 @@
 			children = (
 				895FE54EB8E87EBD2FDE06A6 /* Nixel */,
 				69837DE35522A89306692266 /* NixelWidget */,
+				F1E720FF1A7E026404281062 /* Frameworks */,
 				338F659FA729DA3A501B9BD8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -469,6 +483,14 @@
 			path = Onboarding;
 			sourceTree = "<group>";
 		};
+		F1E720FF1A7E026404281062 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A85E70E16458A1B7860664F2 /* PhotosUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		FD57160BE00BCCB0854C2728 /* Features */ = {
 			isa = PBXGroup;
 			children = (
@@ -523,6 +545,7 @@
 			buildPhases = (
 				D2BB6B7CE560A1A31C228152 /* Sources */,
 				39E089242795C6F2EF8DE610 /* Resources */,
+				0E7C26395CA726876ED0B67B /* Frameworks */,
 				F015DBAD872F11AC7D533B5C /* Embed Foundation Extensions */,
 			);
 			buildRules = (

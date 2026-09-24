@@ -72,6 +72,9 @@ struct GridSectionHeader: View {
     var subtitle: String?
     var allSelected: Bool
     var onToggleAll: () -> Void
+    /// Shown instead of "Select All" when every item is held back from bulk selection
+    /// (people or favourites), so the button never sits there doing nothing.
+    var pickByHand = false
 
     @State private var toggles = 0
 
@@ -90,13 +93,28 @@ struct GridSectionHeader: View {
                 }
             }
             Spacer()
-            Button(allSelected ? "Deselect All" : "Select All") {
-                toggles += 1
-                withAnimation(.snappy(duration: 0.25)) { onToggleAll() }
+            if pickByHand && !allSelected {
+                PickByHandLabel()
+            } else {
+                Button(allSelected ? "Deselect All" : "Select All") {
+                    toggles += 1
+                    withAnimation(.snappy(duration: 0.25)) { onToggleAll() }
+                }
+                .font(.subheadline.weight(.medium))
+                .contentTransition(.identity)
+                .sensoryFeedback(.selection, trigger: toggles)
             }
-            .font(.subheadline.weight(.medium))
-            .contentTransition(.identity)
-            .sensoryFeedback(.selection, trigger: toggles)
         }
+    }
+}
+
+/// Stands in for "Select All" where every photo has a person in it or is a favourite:
+/// those are only ever selected one at a time.
+struct PickByHandLabel: View {
+    var body: some View {
+        Label("Pick by hand", systemImage: "person.fill.checkmark")
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Photos with people or favourites. Select them one at a time.")
     }
 }

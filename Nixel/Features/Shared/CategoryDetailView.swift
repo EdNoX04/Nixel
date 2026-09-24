@@ -35,7 +35,7 @@ struct PhotoGridScreen: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 3)
 
     private var allSelected: Bool {
-        !assets.isEmpty && assets.allSatisfy { selection.isSelected($0.id, in: category) }
+        selection.isBulkSelected(assets, in: category)
     }
 
     var body: some View {
@@ -52,7 +52,8 @@ struct PhotoGridScreen: View {
                             : "\(assets.count) \(category.title.lowercased())",
                         subtitle: "Total \(Bytes.string(assets.reduce(0) { $0 + $1.bytes }))",
                         allSelected: allSelected,
-                        onToggleAll: toggleAll
+                        onToggleAll: toggleAll,
+                        pickByHand: CleanupSelection.bulkSelectable(assets).isEmpty
                     )
                     .padding(.horizontal, Theme.Space.lg)
                     .padding(.vertical, Theme.Space.md)

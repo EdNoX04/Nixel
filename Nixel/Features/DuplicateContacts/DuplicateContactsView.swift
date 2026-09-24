@@ -1,5 +1,6 @@
 import SwiftUI
 import Contacts
+import ContactsUI
 
 /// Duplicate contacts, grouped, with merge or delete per group.
 ///
@@ -14,6 +15,7 @@ struct DuplicateContactsView: View {
     @State private var errorMessage: String?
     @State private var mergedCount = 0
     @State private var cleaned = 0
+    @State private var choosingContacts = false
 
     var body: some View {
         Group {
@@ -30,18 +32,27 @@ struct DuplicateContactsView: View {
                     Button("Try Again") { scanner.scanContacts(access: permissions.contacts) }
                 }
             } else if scanner.contactGroups.isEmpty {
-                ContentUnavailableView(
-                    "No duplicates",
-                    systemImage: "person.2",
-                    description: Text(mergedCount > 0
+                ContentUnavailableView {
+                    Label("No duplicates", systemImage: "person.2")
+                } description: {
+                    Text(mergedCount > 0
                         ? "You cleaned up \(mergedCount) duplicate card\(mergedCount == 1 ? "" : "s"). Nothing else looks repeated."
-                        : "Nothing in your contacts looks repeated.")
-                )
+                        : permissions.contacts == .limited
+                            ? "Nothing looks repeated in the contacts you've shared with Nixel."
+                            : "Nothing in your contacts looks repeated.")
+                } actions: {
+                    if permissions.contacts == .limited {
+                        Button("Choose Contacts") { choosingContacts = true }
+                    }
+                }
             } else {
                 list
             }
         }
         .sensoryFeedback(.success, trigger: cleaned)
+        .modifier(ContactAccessPicker(isPresented: $choosingContacts) {
+            scanner.scanContacts(access: permissions.contacts)
+        })
         .navigationTitle("Duplicate Contacts")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Couldn't update contacts", isPresented: .constant(errorMessage != nil)) {
@@ -88,6 +99,23 @@ struct DuplicateContactsView: View {
 
     private var list: some View {
         List {
+            if permissions.contacts == .limited {
+                Section {
+                    HStack(spacing: Theme.Space.md) {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .foregroundStyle(Theme.success)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Limited access").font(.subheadline.weight(.semibold))
+                            Text("Only the contacts you've shared with Nixel are checked.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Button("Choose") { choosingContacts = true }
+                            .font(.subheadline.weight(.semibold))
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
             Section {
                 ForEach(scanner.contactGroups) { group in
                     ContactGroupRow(
@@ -285,5 +313,20 @@ private struct ContactGroupRow: View {
         let parts = name.split(separator: " ").prefix(2)
         let letters = parts.compactMap { $0.first }.map(String.init).joined()
         return letters.isEmpty ? "?" : letters.uppercased()
+    }
+}
+
+/// iOS 18's picker for which contacts Nixel may see, then a rescan of what's shared.
+/// Limited contacts access only exists from iOS 18, so earlier versions never show it.
+private struct ContactAccessPicker: ViewModifier {
+    @Binding var isPresented: Bool
+    var onDone: () -> Void
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.contactAccessPicker(isPresented: $isPresented) { _ in onDone() }
+        } else {
+            content
+        }
     }
 }
