@@ -50,10 +50,10 @@ enum IntelligenceAvailability: Equatable {
     var explanation: String {
         switch self {
         case .available:         return "On-device intelligence is ready."
-        case .deviceNotEligible: return "This iPhone doesn't support Apple Intelligence."
-        case .notEnabled:        return "Turn on Apple Intelligence in Settings to enable smart triage."
-        case .modelNotReady:     return "Apple Intelligence is still downloading its model."
-        case .osTooOld:          return "Smart triage needs iOS 26 or later."
+        case .deviceNotEligible: return "It needs an iPhone 15 Pro or newer."
+        case .notEnabled:        return "Turn it on in Settings → Apple Intelligence & Siri."
+        case .modelNotReady:     return "It's still downloading its model — try again later."
+        case .osTooOld:          return "It needs iOS 26 or later on a supported iPhone."
         }
     }
 }
@@ -66,12 +66,16 @@ enum IntelligenceAvailability: Equatable {
 ///
 /// The app degrades cleanly: on a device without Apple Intelligence every screen still
 /// works, it just doesn't offer the category breakdown.
+@Observable
 @MainActor
 final class IntelligenceService {
 
     static let shared = IntelligenceService()
 
     fileprivate(set) var availability: IntelligenceAvailability = .osTooOld
+    /// Whether `availability` is the system's real answer yet. The notice that Apple
+    /// Intelligence isn't available waits for this, so a capable iPhone never flashes it.
+    fileprivate(set) var isResolved = false
 
     init() {
         trace("IntelligenceService: init")
@@ -88,6 +92,7 @@ final class IntelligenceService {
         #if canImport(FoundationModels)
         guard #available(iOS 26.0, *) else {
             availability = .osTooOld
+            isResolved = true
             return
         }
         if availability == .osTooOld { availability = .modelNotReady }
@@ -95,11 +100,13 @@ final class IntelligenceService {
             let resolved = Self.resolveAvailability()
             await MainActor.run {
                 IntelligenceService.shared.availability = resolved
+                IntelligenceService.shared.isResolved = true
                 trace("IntelligenceService: availability \(resolved)")
             }
         }
         #else
         availability = .osTooOld
+        isResolved = true
         #endif
     }
 

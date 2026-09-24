@@ -51,6 +51,10 @@ struct ScreenshotsView: View {
                             triageProgress
                         }
 
+                        IntelligenceUnavailableNote(
+                            effect: "Screenshots aren't sorted into receipts, tickets and memes, so none are suggested as safe to clear")
+                            .padding(.horizontal, Theme.Space.lg)
+
                         if heldBack > 0 {
                             PeopleHeldBackNote(count: heldBack)
                                 .padding(.horizontal, Theme.Space.lg)

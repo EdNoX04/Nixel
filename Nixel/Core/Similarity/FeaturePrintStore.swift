@@ -112,7 +112,8 @@ final class FeaturePrintStore {
             cursor += byteCount
 
             loaded[id] = Record(modified: modified, kind: kind, sharpness: sharpness,
-                                people: Int(people), vector: vector)
+                                people: people == UInt16.max ? PeopleDetector.unknown : Int(people),
+                                vector: vector)
         }
 
         records = loaded
@@ -132,7 +133,8 @@ final class FeaturePrintStore {
             withUnsafeBytes(of: record.modified) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: record.kind.rawValue) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: record.sharpness) { data.append(contentsOf: $0) }
-            withUnsafeBytes(of: UInt16(min(record.people, 65_535))) { data.append(contentsOf: $0) }
+            let people = record.people < 0 ? UInt16.max : UInt16(min(record.people, 65_534))
+            withUnsafeBytes(of: people) { data.append(contentsOf: $0) }
             withUnsafeBytes(of: UInt16(record.vector.count)) { data.append(contentsOf: $0) }
             record.vector.withUnsafeBufferPointer { buffer in
                 data.append(UnsafeRawBufferPointer(buffer).bindMemory(to: UInt8.self))

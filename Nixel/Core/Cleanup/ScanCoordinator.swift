@@ -202,16 +202,33 @@ final class ScanCoordinator {
 
     /// Updates counts after a deletion. A category's state is left as it was: forcing
     /// everything to "ready" mid-scan made the progress ring jump.
+    /// Videos at or above this size are "large": they count towards what can be freed.
+    /// Every video is still listed, largest first; the small ones just aren't promised back.
+    static let largeVideoBytes: Int64 = 20 * 1_000_000
+
+    /// What the dashboard may honestly promise: screenshots the app itself holds back
+    /// (receipts, tickets, codes) are never counted as space to free.
+    private var freeableScreenshots: [PhotoAsset] {
+        screenshots.filter { asset in
+            guard let verdict = screenshotVerdicts[asset.id] else { return true }
+            return verdict.safeToDelete || !verdict.kind.isSensitive
+        }
+    }
+
+    private var freeableVideos: [PhotoAsset] {
+        largeVideos.filter { $0.bytes >= Self.largeVideoBytes }
+    }
+
     private func recomputeSummaries() {
         func update(_ category: CleanupCategory, count: Int, bytes: Int64) {
             let state = summaries[category]?.state ?? .ready
             summaries[category] = CategorySummary(state: state, itemCount: count,
                                                   reclaimableBytes: bytes)
         }
-        update(.screenshots, count: screenshots.count,
-               bytes: screenshots.reduce(0) { $0 + $1.bytes })
-        update(.largeVideos, count: largeVideos.count,
-               bytes: largeVideos.reduce(0) { $0 + $1.bytes })
+        update(.screenshots, count: freeableScreenshots.count,
+               bytes: freeableScreenshots.reduce(0) { $0 + $1.bytes })
+        update(.largeVideos, count: freeableVideos.count,
+               bytes: freeableVideos.reduce(0) { $0 + $1.bytes })
         update(.blurryPhotos, count: blurryPhotos.count,
                bytes: blurryPhotos.reduce(0) { $0 + $1.bytes })
         update(.similarPhotos, count: similarGroups.reduce(0) { $0 + $1.others.count },
@@ -437,6 +454,8 @@ final class ScanCoordinator {
             await MainActor.run {
                 self?.screenshotVerdicts = verdicts
                 self?.isTriaging = false
+                // Receipts and tickets now known: take them out of "can be freed".
+                self?.recomputeSummaries()
                 trace("triage: done, \(verdicts.count) verdicts")
             }
         }
@@ -470,8 +489,8 @@ final class ScanCoordinator {
         screenshots = sized
         summaries[.screenshots] = CategorySummary(
             state: .ready,
-            itemCount: sized.count,
-            reclaimableBytes: sized.reduce(0) { $0 + $1.bytes })
+            itemCount: freeableScreenshots.count,
+            reclaimableBytes: freeableScreenshots.reduce(0) { $0 + $1.bytes })
 
         // Screenshot triage (OCR and the language model) is deliberately NOT started here.
         // It used to launch alongside the similarity pass, so three neural workloads cold-
@@ -495,8 +514,8 @@ final class ScanCoordinator {
         largeVideos = videoAssets
         summaries[.largeVideos] = CategorySummary(
             state: .ready,
-            itemCount: videoAssets.count,
-            reclaimableBytes: videoAssets.reduce(0) { $0 + $1.bytes })
+            itemCount: freeableVideos.count,
+            reclaimableBytes: freeableVideos.reduce(0) { $0 + $1.bytes })
 
         // --- 2. Similar photos: the expensive pass. ---
         trace("videos: done \(largeVideos.count); photos: fetching")

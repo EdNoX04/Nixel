@@ -14,7 +14,7 @@ struct PeopleHeldBackNote: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count) photo\(count == 1 ? "" : "s") left out")
                     .font(.subheadline.weight(.semibold))
-                Text("Photos with people in them and your favourites are never swept up by Select All. Pick them individually if you mean to.")
+                Text("Photos with people in them — or not checked for people yet — and your favourites are never swept up by Select All. Pick them individually if you mean to.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -29,41 +29,55 @@ struct StorageTabView: View {
             // The first version dropped the headline and the agent card while scanning, so
             // the centred block re-centred and everything below jumped — twice, in quick
             // succession, on a fast scan. Content now swaps inside slots of fixed size.
-            VStack(spacing: Theme.Space.xl) {
-                if let finding = NixelAgent.shared.lastFinding {
-                    AgentFindingCard(finding: finding)
-                        .padding(.horizontal, Theme.Space.lg)
-                        .padding(.top, Theme.Space.sm)
-                        .opacity(scanner.isScanning ? 0.45 : 1)
+            // Centred when it fits, scrolling when it doesn't (an iPhone SE, larger text).
+            // The ring shrinks on short screens so it usually fits without scrolling.
+            GeometryReader { proxy in
+                let ring = min(236, max(170, proxy.size.height * 0.32))
+                ScrollView {
+                    VStack(spacing: proxy.size.height < 620 ? Theme.Space.lg : Theme.Space.xl) {
+                        if let finding = NixelAgent.shared.lastFinding {
+                            AgentFindingCard(finding: finding)
+                                .padding(.horizontal, Theme.Space.lg)
+                                .padding(.top, Theme.Space.sm)
+                                .opacity(scanner.isScanning ? 0.45 : 1)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        StorageHero(
+                            snapshot: scanner.storage,
+                            reclaimable: scanner.totalReclaimable,
+                            isScanning: scanner.isScanning,
+                            progress: scanner.overallProgress,
+                            isActive: animates
+                        )
+                        .frame(width: ring, height: ring)
+                        // The readout lives inside the ring, which can't grow with text size.
+                        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+
+                        headline
+                            .frame(minHeight: 58)
+                            .padding(.horizontal, Theme.Space.xl)
+
+                        breakdown
+                            .padding(.horizontal, Theme.Space.lg)
+
+                        scanButton
+                            .padding(.horizontal, Theme.Space.xxl)
+
+                        footer
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: proxy.size.height)
                 }
-
-                Spacer(minLength: 0)
-
-                StorageHero(
-                    snapshot: scanner.storage,
-                    reclaimable: scanner.totalReclaimable,
-                    isScanning: scanner.isScanning,
-                    progress: scanner.overallProgress,
-                    isActive: animates
-                )
-                .frame(width: 236, height: 236)
-
-                headline
-                    .frame(height: 58)
-                    .padding(.horizontal, Theme.Space.xl)
-
-                scanButton
-                    .padding(.horizontal, Theme.Space.xxl)
-
-                footer
-
-                Spacer(minLength: 0)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // The layout is a fixed, centred composition; past this size it runs out of room
-        // on smaller iPhones. Every other screen scrolls and takes any size.
-        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        // The ring and tiles are a composition; beyond this text size they stop reading as one.
+        // The screen scrolls, so larger sizes still fit — they just stop growing here.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .navigationTitle("Nixel")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -97,7 +111,88 @@ struct StorageTabView: View {
                scanner.lastScanDate == nil {
                 scanner.scanPhotos(access: permissions.photos)
             }
+            refreshContactsIfAllowed()
         }
+    }
+
+    /// Fills in the Contacts tile when access was already given. Never asks — the prompt
+    /// only ever comes from the Contacts tab, where the reason is on screen.
+    private func refreshContactsIfAllowed() {
+        permissions.refresh()
+        guard permissions.contacts.canScan,
+              !scanner.summary(.duplicateContacts).state.isScanning else { return }
+        scanner.scanContacts(access: permissions.contacts)
+    }
+
+    // MARK: Per-category breakdown
+
+    /// What each category could free, straight from the home screen — the brief's first
+    /// must-have. A fixed slot: it's laid out before the first scan too (invisible), so
+    /// results arriving don't push the button down.
+    private var breakdown: some View {
+        let shown = scanner.lastScanDate != nil && !scanner.isScanning
+            && headlineState != .noAccess && headlineState != .empty
+        return HStack(spacing: Theme.Space.sm) {
+            tile(.similarPhotos, label: "Similar", tab: .similar)
+            tile(.screenshots, label: "Screens", tab: .screenshots)
+            tile(.largeVideos, label: "Videos", tab: .videos)
+            tile(.blurryPhotos, label: "Blurry", tab: .similar, push: .category(.blurryPhotos))
+            tile(.duplicateContacts, label: "Contacts", tab: .contacts)
+        }
+        // Tiles are five abreast, so their text stops growing at xxLarge; beyond that
+        // it would only truncate. The row sizes to its content, never overlapping.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .fixedSize(horizontal: false, vertical: true)
+        .morph(visible: shown)
+        .allowsHitTesting(shown)
+        .accessibilityHidden(!shown)
+        .animation(.easeInOut(duration: 0.35), value: shown)
+    }
+
+    private func tile(_ category: CleanupCategory, label: String, tab: TabItem,
+                      push route: Route? = nil) -> some View {
+        let summary = scanner.summary(category)
+        let ready: Bool = { if case .ready = summary.state { return true }; return false }()
+        let value: String
+        if !ready {
+            // Contacts are only read from their own tab, so until then there's no figure.
+            value = category == .duplicateContacts ? "Check" : "—"
+        } else if category.measuresBytes {
+            value = summary.reclaimableBytes > 0 ? Bytes.string(summary.reclaimableBytes) : "None"
+        } else {
+            value = summary.itemCount > 0 ? "\(summary.itemCount) extra" : "None"
+        }
+        return Button {
+            navigator.show(tab)
+            if let route { navigator.push(route, on: tab) }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: category.icon)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(category.tint)
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Theme.Space.sm)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+                    .fill(Color(.secondarySystemBackground).opacity(0.7))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(category.measuresBytes
+                            ? "\(category.title): \(value) can be freed"
+                            : "\(category.title): \(value)")
     }
 
     // MARK: Headline
@@ -255,6 +350,7 @@ struct StorageTabView: View {
         scanner.hasConsentedToScan = true
         scanner.resumeAfterStop()
         scanner.scanPhotos(access: permissions.photos, restart: true)
+        refreshContactsIfAllowed()
     }
 
     private var footer: some View {

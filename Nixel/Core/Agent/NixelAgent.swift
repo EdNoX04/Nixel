@@ -146,6 +146,10 @@ final class NixelAgent {
         let coordinator = ScanCoordinator()
         await coordinator.scanForAgent()
 
+        // iOS ended the run early: the numbers would be partial, so say nothing rather
+        // than notify with an understated (or empty) figure. Tomorrow's run is scheduled.
+        guard !Task.isCancelled else { return nil }
+
         let duplicates = coordinator.summary(.similarPhotos).itemCount
         let screenshots = coordinator.summary(.screenshots).itemCount
         let videos = coordinator.summary(.largeVideos).itemCount
@@ -158,6 +162,7 @@ final class NixelAgent {
 
         // Ask Apple Intelligence to phrase it; fall back to a plain sentence if the model
         // isn't available, so the feature still works on every device.
+        guard !Task.isCancelled else { return nil }
         let headline = await IntelligenceService.shared.summarise(
             duplicates: duplicates, screenshots: screenshots, videos: videos, bytes: bytes
         ) ?? "\(Bytes.string(bytes)) can be freed from \(duplicates + screenshots + videos) items."

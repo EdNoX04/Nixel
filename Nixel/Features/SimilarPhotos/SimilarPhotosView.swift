@@ -25,6 +25,8 @@ struct SimilarPhotosView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Theme.Space.xl) {
+                        IntelligenceUnavailableNote(
+                            effect: "Groups are shown by size rather than named by what's in them")
                         if heldBack > 0 { PeopleHeldBackNote(count: heldBack) }
 
                         if scanner.summary(.blurryPhotos).hasFindings {
@@ -37,7 +39,12 @@ struct SimilarPhotosView: View {
 
                         ForEach(groups) { group in
                             groupSection(group)
-                                .task { scanner.describeGroup(group) }
+                                // Keyed on availability: a row that appeared before Apple
+                                // Intelligence finished starting up asks again once it has,
+                                // instead of staying unnamed.
+                                .task(id: IntelligenceService.shared.availability.isAvailable) {
+                                    scanner.describeGroup(group)
+                                }
                         }
                     }
                     .padding(.horizontal, Theme.Space.lg)

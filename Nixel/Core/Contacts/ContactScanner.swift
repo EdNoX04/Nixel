@@ -79,8 +79,22 @@ actor ContactScanner {
             guard !key.isEmpty, record.displayName != "No Name" else { continue }
             byName[key, default: []].append(index)
         }
+        // A shared name alone is weak evidence — two different John Smiths share one. So a
+        // name only links cards whose details don't contradict each other: if both have
+        // phone numbers and none match, or both have emails and none match, they're kept
+        // apart. Complementary cards (one with a number, one with an email) still link.
+        func conflicting(_ a: ContactRecord, _ b: ContactRecord) -> Bool {
+            if !a.phones.isEmpty, !b.phones.isEmpty, Set(a.phones).isDisjoint(with: b.phones) { return true }
+            if !a.emails.isEmpty, !b.emails.isEmpty, Set(a.emails).isDisjoint(with: b.emails) { return true }
+            return false
+        }
         for (_, indices) in byName where indices.count > 1 {
-            for i in 1..<indices.count { link(indices[0], indices[i], .sameName) }
+            for i in 0..<indices.count {
+                for j in (i + 1)..<indices.count
+                where !conflicting(records[indices[i]], records[indices[j]]) {
+                    link(indices[i], indices[j], .sameName)
+                }
+            }
         }
 
         var byPhone: [String: [Int]] = [:]
@@ -123,7 +137,23 @@ actor ContactScanner {
             ))
         }
 
-        return groups.sorted { $0.records.count > $1.records.count }
+        return groups
+            .filter { !Self.alreadyLinked($0) }
+            .sorted { $0.records.count > $1.records.count }
+    }
+
+    /// Cards iOS already shows as one person (linked across iCloud, Gmail, Exchange…) are
+    /// not duplicates to the user — and "merging" them would delete a card on another
+    /// account. `unifyResults = false` surfaces them separately, so filter them here.
+    private static func alreadyLinked(_ group: ContactDuplicateGroup) -> Bool {
+        guard let first = group.records.first else { return false }
+        let keys = [CNContactIdentifierKey as CNKeyDescriptor]
+        guard let unified = try? CNContactStore().unifiedContacts(
+            matching: CNContact.predicateForContacts(withIdentifiers: [first.id]),
+            keysToFetch: keys).first else { return false }
+        return group.records.dropFirst().allSatisfy {
+            unified.isUnifiedWithContact(withIdentifier: $0.id)
+        }
     }
 
     /// Keep whichever record carries the most information — a photo counts, and so does

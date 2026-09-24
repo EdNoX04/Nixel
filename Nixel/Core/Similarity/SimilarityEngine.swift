@@ -65,6 +65,7 @@ actor SimilarityEngine {
             guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate)
             else { return true }
             return record.vector.isEmpty || record.kind != expected
+                || record.people == PeopleDetector.unknown    // retry a failed detection
         }
 
         trace("prepare: \(assets.count) assets, \(missing.count) need analysis")
@@ -85,6 +86,7 @@ actor SimilarityEngine {
         // queue behind it; the queue caps the neural work at two regardless.
         let concurrency = 6
         var done = 0
+        let saveEvery = max(150, missing.count / 10)
 
         await withTaskGroup(of: (String, Date?, Descriptor?, Double, Int).self) { group in
             var next = 0
@@ -119,7 +121,9 @@ actor SimilarityEngine {
                 // Save as we go. The cache used to be written only once the whole pass
                 // finished, so backgrounding the app partway through a big library threw
                 // every analysed photo away.
-                if done % 150 == 0 { store.save() }
+                // Each save rewrites the whole file, so space them out on a big library:
+                // about ten per scan at most, never fewer than every 150 photos.
+                if done % saveEvery == 0 { store.save() }
                 if done == 1 || done % 25 == 0 { trace("prepare: \(done)/\(missing.count) engine=\(descriptor?.kind.rawValue ?? 0)") }
                 if Task.isCancelled { break }
                 schedule()
@@ -145,7 +149,8 @@ actor SimilarityEngine {
     func peopleCounts(for assets: [PhotoAsset]) -> [String: Int] {
         var counts: [String: Int] = [:]
         for asset in assets {
-            guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate)
+            guard let record = store.record(for: asset.id, modified: asset.phAsset.modificationDate),
+                  record.people != PeopleDetector.unknown
             else { continue }
             counts[asset.id] = record.people
         }
@@ -181,7 +186,7 @@ actor SimilarityEngine {
                   record.vector.count == kind.dimensions else { continue }
             var enriched = asset
             enriched.sharpness = record.sharpness
-            enriched.peopleCount = record.people
+            enriched.peopleCount = record.people == PeopleDetector.unknown ? nil : record.people
             usable.append(enriched)
             vectors.append(record.vector)
         }

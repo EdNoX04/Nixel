@@ -40,7 +40,22 @@ enum PeopleDetector {
         lock.lock(); failed = true; lock.unlock()
     }
 
-    /// Number of people visible. 0 means none were found, not that none are there.
+    /// Whether this device should be able to detect people at all. The Simulator can't;
+    /// a real iPhone can. Where it can, a photo whose count is unknown is treated as
+    /// possibly having someone in it — the brake fails closed, never open.
+    static var isExpected: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return true
+        #endif
+    }
+
+    /// Stored in the cache for "detection failed": retried on the next scan.
+    static let unknown = -1
+
+    /// Number of people visible, or `unknown` if detection failed. 0 means none were
+    /// found, not that none are there.
     static func count(in cgImage: CGImage) -> Int {
         let faceRequest = VNDetectFaceRectanglesRequest()
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
@@ -48,8 +63,8 @@ enum PeopleDetector {
         do {
             try handler.perform([faceRequest])
         } catch {
-            markUnavailable()
-            return 0
+            if !isExpected { markUnavailable() }
+            return isExpected ? unknown : 0
         }
 
         let faces = faceRequest.results?.count ?? 0
@@ -61,8 +76,8 @@ enum PeopleDetector {
         do {
             try handler.perform([bodyRequest])
         } catch {
-            markUnavailable()
-            return 0
+            if !isExpected { markUnavailable() }
+            return isExpected ? unknown : 0
         }
         return bodyRequest.results?.count ?? 0
     }
@@ -70,6 +85,13 @@ enum PeopleDetector {
 
 extension PhotoAsset {
     var hasPeople: Bool { (peopleCount ?? 0) > 0 }
+
+    /// Whether a bulk action should leave this photo alone: it has people in it, or on a
+    /// device that can detect people we don't know yet. Videos aren't checked.
+    var mightHavePeople: Bool {
+        if hasPeople { return true }
+        return PeopleDetector.isExpected && !isVideo && peopleCount == nil
+    }
 
     var peopleLabel: String? {
         guard let count = peopleCount, count > 0 else { return nil }

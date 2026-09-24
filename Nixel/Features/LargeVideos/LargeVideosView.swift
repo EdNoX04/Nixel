@@ -17,24 +17,32 @@ struct LargeVideosView: View {
                                 emptyTitle: "No videos",
                                 emptyMessage: "There are no videos in your library.")
             } else {
+                // Every video is listed, largest first. Only the large ones count towards
+                // "can be freed" on the dashboard, so the two are shown apart.
+                let large = videos.filter { $0.bytes >= ScanCoordinator.largeVideoBytes }
+                let small = videos.filter { $0.bytes < ScanCoordinator.largeVideoBytes }
                 List {
-                    Section {
-                        ForEach(videos) { video in
-                            VideoRow(
-                                video: video,
-                                isSelected: selection.isSelected(video.id, in: .largeVideos),
-                                onToggle: { selection.toggle(video, in: .largeVideos) },
-                                onPreview: { previewing = video }
-                            )
+                    if !large.isEmpty {
+                        Section {
+                            rows(large)
+                        } header: {
+                            Text("Large · \(Self.summary(large))")
+                        } footer: {
+                            Text("Videos of \(Bytes.string(ScanCoordinator.largeVideoBytes)) or more. These count towards what Nixel says can be freed.")
                         }
-                    } header: {
-                        Text("\(videos.count) video\(videos.count == 1 ? "" : "s") · \(Bytes.string(videos.reduce(0) { $0 + $1.bytes })) total")
+                    }
+                    if !small.isEmpty {
+                        Section {
+                            rows(small)
+                        } header: {
+                            Text("Smaller videos · \(Self.summary(small))")
+                        }
                     }
                 }
                 .listStyle(.plain)
             }
         }
-        .navigationTitle("Large Videos")
+        .navigationTitle("Videos")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !videos.isEmpty {
@@ -48,6 +56,22 @@ struct LargeVideosView: View {
         .selectionBar(count: selection.count(in: .largeVideos),
                       bytes: selection.bytes(in: .largeVideos)) { navigator.push(.review) }
         .sheet(item: $previewing) { VideoPreviewSheet(asset: $0) }
+    }
+
+    @ViewBuilder
+    private func rows(_ list: [PhotoAsset]) -> some View {
+        ForEach(list) { video in
+            VideoRow(
+                video: video,
+                isSelected: selection.isSelected(video.id, in: .largeVideos),
+                onToggle: { selection.toggle(video, in: .largeVideos) },
+                onPreview: { previewing = video }
+            )
+        }
+    }
+
+    private static func summary(_ list: [PhotoAsset]) -> String {
+        "\(list.count) video\(list.count == 1 ? "" : "s"), \(Bytes.string(list.reduce(0) { $0 + $1.bytes }))"
     }
 }
 

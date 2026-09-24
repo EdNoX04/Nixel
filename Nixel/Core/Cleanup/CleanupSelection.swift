@@ -74,7 +74,7 @@ final class CleanupSelection {
     /// held back.
     @discardableResult
     func selectSkippingPeople(_ list: [PhotoAsset], in category: CleanupCategory) -> Int {
-        let safe = list.filter { !$0.hasPeople && !$0.isFavorite }
+        let safe = list.filter { !$0.mightHavePeople && !$0.isFavorite }
         select(safe, in: category)
         return list.count - safe.count
     }

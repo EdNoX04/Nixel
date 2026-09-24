@@ -27,8 +27,8 @@ enum DebugContactSeed {
         var emails: [String] = []
     }
 
-    /// Ground truth: sixteen duplicate groups (nineteen extras) and twenty-seven people who
-    /// must not be grouped with anyone.
+    /// Ground truth: sixteen duplicate groups (nineteen extras) and twenty-nine people who
+    /// must not be grouped with anyone — including two different people with the same name.
     static let fixtures: [Spec] = [
         // 1 — same person, same number, name typed differently
         Spec(given: "Priya", family: "Raman", phones: ["+1 202 555 0147"], emails: ["priya@example.com"]),
@@ -130,7 +130,14 @@ enum DebugContactSeed {
         Spec(given: "Ruby", family: "Clarke", phones: ["+1 971 555 0103"]),
         Spec(given: "Leo", family: "Martins", emails: ["leo.martins@example.com"]),
         Spec(given: "Tara", family: "Singh", phones: ["+1 267 555 0161"]),
-        Spec(given: "Victor", family: "Hale", emails: ["victor.hale@example.org"])
+        Spec(given: "Victor", family: "Hale", emails: ["victor.hale@example.org"]),
+
+        // Same name, different people: nothing shared, and their details contradict —
+        // must stay apart even though the names match exactly.
+        Spec(given: "Chris", family: "Morgan", phones: ["+1 303 555 0171"],
+             emails: ["chris.morgan@example.com"]),
+        Spec(given: "Chris", family: "Morgan", phones: ["+44 7700 900654"],
+             emails: ["cmorgan@example.net"])
     ]
 
     private static var manifestURL: URL {

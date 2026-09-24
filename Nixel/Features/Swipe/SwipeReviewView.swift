@@ -26,6 +26,7 @@ struct SwipeReviewView: View {
 
     @Environment(CleanupSelection.self) private var selection
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var index = 0
     @State private var drag: CGSize = .zero
@@ -131,7 +132,7 @@ struct SwipeReviewView: View {
             // which made it trail behind like it was on a spring. Releases and decisions
             // animate explicitly instead.
             .offset(x: isTop ? drag.width : 0, y: isTop ? drag.height * 0.25 : 0)
-            .rotationEffect(.degrees(isTop ? Double(drag.width / 18) : 0),
+            .rotationEffect(.degrees(isTop && !reduceMotion ? Double(drag.width / 18) : 0),
                             anchor: .bottom)
             .modifier(SwipeGestureModifier(enabled: isTop, gesture: swipeGesture(asset)))
             // Swiping has a non-gesture path for VoiceOver: the card offers Keep and Remove.
@@ -224,6 +225,15 @@ struct SwipeReviewView: View {
 
     private func decide(_ asset: PhotoAsset, keep: Bool) {
         guard !deciding else { return }
+        if reduceMotion {
+            // No fling: record the decision and cross-fade to the next card.
+            if keep { selection.deselect([asset], in: category) }
+            else { selection.select([asset], in: category) }
+            decisions.append((asset, keep))
+            drag = .zero
+            withAnimation(.easeInOut(duration: 0.2)) { index += 1 }
+            return
+        }
         deciding = true
         // Fling the card off-screen before advancing, so the motion reads as a decision.
         withAnimation(.easeIn(duration: 0.2)) {
@@ -249,6 +259,11 @@ struct SwipeReviewView: View {
     private func undo() {
         guard !deciding, let last = decisions.popLast() else { return }
         selection.deselect([last.asset], in: category)
+        if reduceMotion {
+            drag = .zero
+            withAnimation(.easeInOut(duration: 0.2)) { index = max(0, index - 1) }
+            return
+        }
         // Bring the card back in from the side it left by. The off-screen position has to
         // render for a frame first; set and animated back in one update, the two changes
         // cancel out and the card just pops in.

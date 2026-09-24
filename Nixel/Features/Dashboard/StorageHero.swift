@@ -158,6 +158,11 @@ struct StorageHero: View {
             VStack(spacing: 2) {
                 Text(Bytes.string(snapshot.available))
                     .font(.system(size: 40, weight: .bold, design: .rounded))
+                    // One line, always: the ring shrinks on small iPhones and a wrapped
+                    // "42.49 / GB" broke out of it.
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, 18)
                     .contentTransition(.numericText())
                 Text("free")
                     .font(.subheadline)
@@ -175,6 +180,8 @@ struct StorageHero: View {
                     .foregroundStyle(Theme.indigo)
                 Text("\(Int(progress * 100))%")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .contentTransition(.numericText(value: progress))
                     .monospacedDigit()
                     .animation(.easeOut(duration: 0.45), value: Int(progress * 100))
