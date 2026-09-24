@@ -46,10 +46,10 @@ enum VisionWork {
     /// Loads the models once, serially, before the parallel pass. Otherwise the first
     /// requests each trigger their own cold load on the Neural Engine simultaneously.
     static func warmUp() async {
-        warmLock.lock()
-        let already = warmed
-        warmed = true
-        warmLock.unlock()
+        let already = warmLock.withLock {
+            defer { warmed = true }
+            return warmed
+        }
         guard !already else { return }
 
         trace("vision: warming models")

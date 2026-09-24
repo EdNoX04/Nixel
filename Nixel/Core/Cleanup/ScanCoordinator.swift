@@ -298,12 +298,12 @@ final class ScanCoordinator {
     /// the phone froze the UI while iOS did its sums.
     func refreshStorage() {
         trace("storage: refresh requested")
-        Task.detached(priority: .utility) { [weak self] in
-            let snapshot = DeviceStorage.snapshot()
-            await MainActor.run {
-                self?.storage = snapshot
-                trace("storage: refreshed")
-            }
+        Task { [weak self] in
+            let snapshot = await Task.detached(priority: .utility) {
+                DeviceStorage.snapshot()
+            }.value
+            self?.storage = snapshot
+            trace("storage: refreshed")
         }
     }
 
