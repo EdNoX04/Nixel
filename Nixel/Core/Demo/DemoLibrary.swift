@@ -56,23 +56,28 @@ enum DemoLibrary {
     /// Re-derives the manifest from Photos and reports what an import would do.
     /// Does a resource lookup per asset, so call it off the main actor.
     static func status() -> Status {
+        let started = Date()
         let (kept, surplus, unknown) = reconcile()
         saveEntries(kept + surplus + unknown)
         let have = Set(kept.map(\.file))
+        let files = availableFiles()
         let status = Status(
-            pending: availableFiles().filter { !have.contains($0.lastPathComponent) }.count,
+            pending: files.filter { !have.contains($0.lastPathComponent) }.count,
             surplus: surplus.count,
             unknown: unknown.count,
-            files: availableFiles().count)
-        writeDiagnostics(status, kept: kept, surplus: surplus)
+            files: files.count)
+        writeDiagnostics(status, kept: kept, surplus: surplus, files: files.count)
+        trace(String(format: "demo status: %d kept, %d pending in %.2fs",
+                     kept.count, status.pending, Date().timeIntervalSince(started)))
         return status
     }
 
     /// Counts plus a few demo file names, so the state can be checked from a Mac before
     /// anything is imported or removed. Only ever names files from the demo folder.
-    private static func writeDiagnostics(_ status: Status, kept: [Entry], surplus: [Entry]) {
+    private static func writeDiagnostics(_ status: Status, kept: [Entry], surplus: [Entry],
+                                         files: Int) {
         let report: [String: Any] = [
-            "files": availableFiles().count,
+            "files": files,
             "kept": kept.count,
             "pending": status.pending,
             "surplus": status.surplus,
@@ -92,18 +97,28 @@ enum DemoLibrary {
     /// a first-version manifest of bare identifiers, both come out right. The first copy
     /// of each file (in manifest order) is kept; later copies are surplus. Assets deleted
     /// elsewhere drop out.
+    ///
+    /// Only entries without a name are looked up. A name in the manifest was either taken
+    /// from the creation request that made that exact asset, or read back from Photos by an
+    /// earlier pass, and an asset's original filename never changes. Looking every asset up
+    /// again took long enough on a 2,000-item library that the Developer rows sat on a
+    /// spinner each time the screen opened.
     private static func reconcile() -> (kept: [Entry], surplus: [Entry], unknown: [Entry]) {
-        let ids = loadEntries().map(\.id)
-        guard !ids.isEmpty else { return ([], [], []) }
+        let entries = loadEntries()
+        guard !entries.isEmpty else { return ([], [], []) }
         var byID: [String: PHAsset] = [:]
-        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+        PHAsset.fetchAssets(withLocalIdentifiers: entries.map(\.id), options: nil)
             .enumerateObjects { asset, _, _ in byID[asset.localIdentifier] = asset }
 
         var kept: [Entry] = [], surplus: [Entry] = [], unknown: [Entry] = []
         var seen = Set<String>()
-        for id in ids {
+        for entry in entries {
+            let id = entry.id
+            // Deleted elsewhere: drops out of the manifest.
             guard let asset = byID.removeValue(forKey: id) else { continue }
-            let name = PHAssetResource.assetResources(for: asset).first?.originalFilename ?? ""
+            let name = entry.file.isEmpty
+                ? PHAssetResource.assetResources(for: asset).first?.originalFilename ?? ""
+                : entry.file
             let entry = Entry(file: name, id: id)
             if name.isEmpty { unknown.append(entry) }
             else if seen.insert(name).inserted { kept.append(entry) }

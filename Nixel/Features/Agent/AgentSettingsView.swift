@@ -157,7 +157,11 @@ struct AgentSettingsView: View {
                     HStack {
                         Text("Add demo contacts")
                         Spacer()
-                        Text(Self.describe(contactStatus)).foregroundStyle(.secondary)
+                        if contactStatus == nil && permissions.contacts.canScan {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text(Self.describe(contactStatus)).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .disabled(contactStatus?.isUpToDate == true)
@@ -219,12 +223,17 @@ struct AgentSettingsView: View {
         await refreshDemoStatus()
     }
 
+    /// The two checks run side by side: contacts are quick, and used to wait behind the
+    /// photo library check, so their row sat on "64 people" instead of "up to date".
     private func refreshDemoStatus() async {
-        demoStatus = await Task.detached { DemoLibrary.status() }.value
         // Contacts can only be compared once Nixel may read them.
-        if permissions.contacts.canScan {
-            contactStatus = await Task.detached { DebugContactSeed.status() }.value
-        }
+        let canReadContacts = permissions.contacts.canScan
+        async let contacts: DebugContactSeed.Status? = canReadContacts
+            ? await Task.detached { DebugContactSeed.status() }.value
+            : nil
+        async let library = Task.detached { DemoLibrary.status() }.value
+        contactStatus = await contacts
+        demoStatus = await library
     }
 
     private static func describe(_ status: DebugContactSeed.Status?) -> String {
